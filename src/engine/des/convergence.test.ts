@@ -254,4 +254,37 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(desDelta).toBeGreaterThan(30);
     expect(desDelta).toBeLessThan(55);
   });
+
+  it('database engine type: a throughput-bound write-heavy store tracks between engines', () => {
+    // Cassandra: writes ~2.5× cheaper than reads, sized on capacityRps not a pool.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', {
+          serviceTimeMs: 0.5,
+          concurrency: 128,
+          replicas: 1,
+          intrinsicErrorRate: 0,
+        }),
+        node('db', 'sqlDatabase', {
+          architecture: 'single',
+          engine: 'cassandra',
+          capacityRps: 800,
+          queryTimeMs: 1,
+          readRatio: 0.2,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'db')],
+      500,
+    );
+    const sim = measure(d, 120, 400);
+    const a = solve(d).perNode.db.metrics;
+    const s = sim.perNode.db;
+
+    // write-heavy mix on an LSM store stays well under capacity in both engines
+    expect(a.rho).toBeLessThan(0.85);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
+    expect(rel(s.latency.p50, a.latency.p50)).toBeLessThan(0.35);
+  });
 });

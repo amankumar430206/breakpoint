@@ -95,6 +95,60 @@ describe('sqlDatabase — architectures', () => {
     expect(rep(writeHeavy).latencyP99).toBeGreaterThan(rep(readHeavy).latencyP99);
   });
 
+  it('engine cost factors decide which traffic mix saturates', () => {
+    const load = 60_000;
+    const mongo = (readRatio: number) =>
+      solve(
+        { engine: 'mongodb', architecture: 'single', capacityRps: 50_000, queryTimeMs: 1, readRatio },
+        load,
+      );
+    const cass = (readRatio: number) =>
+      solve(
+        { engine: 'cassandra', architecture: 'single', capacityRps: 50_000, queryTimeMs: 1, readRatio },
+        load,
+      );
+    // read-heavy: Mongo's denormalized reads keep ρ lower than Cassandra's read-amplified ones
+    expect(mongo(0.95).metrics.rho).toBeLessThan(cass(0.95).metrics.rho);
+    // write-heavy: Cassandra's LSM appends keep ρ lower than Mongo's
+    expect(cass(0.15).metrics.rho).toBeLessThan(mongo(0.15).metrics.rho);
+  });
+
+  it('throughput engines size on capacityRps, not poolSize', () => {
+    const base = { engine: 'mongodb', architecture: 'single', capacityRps: 40_000, queryTimeMs: 2 } as const;
+    const small = solve({ ...base, poolSize: 5 }, 30_000);
+    const big = solve({ ...base, poolSize: 500 }, 30_000);
+    expect(small.metrics.rho).toBeCloseTo(big.metrics.rho, 6); // poolSize is inert here
+    const moreCap = solve({ ...base, poolSize: 5, capacityRps: 120_000 }, 30_000);
+    expect(moreCap.metrics.rho).toBeLessThan(small.metrics.rho); // capacityRps is the knob
+  });
+
+  it('pool engines still bind on poolSize', () => {
+    const base = { engine: 'postgres', architecture: 'single', queryTimeMs: 5 } as const;
+    const small = solve({ ...base, poolSize: 10 }, 3000);
+    const big = solve({ ...base, poolSize: 40 }, 3000);
+    expect(big.metrics.rho).toBeLessThan(small.metrics.rho * 0.5);
+  });
+
+  it('distributed SQL adds a write-consensus latency penalty', () => {
+    const p = { architecture: 'single', queryTimeMs: 4, poolSize: 50, readRatio: 0.5 } as const;
+    const pg = solve({ ...p, engine: 'postgres' }, 500);
+    const crdb = solve({ ...p, engine: 'cockroachdb' }, 500);
+    expect(crdb.metrics.latency.mean).toBeGreaterThan(pg.metrics.latency.mean + 0.002);
+  });
+
+  it('fieldVisible follows the engine concurrency model', () => {
+    expect(m.fieldVisible!('poolSize', { engine: 'mongodb' })).toBe(false);
+    expect(m.fieldVisible!('capacityRps', { engine: 'mongodb' })).toBe(true);
+    expect(m.fieldVisible!('poolSize', { engine: 'postgres' })).toBe(true);
+    expect(m.fieldVisible!('capacityRps', { engine: 'postgres' })).toBe(false);
+  });
+
+  it('engine defaults to postgres and leaves the pool model untouched', () => {
+    const withEngine = solve({ architecture: 'single', engine: 'postgres', queryTimeMs: 5, poolSize: 20 }, 2000);
+    const noEngine = solve({ architecture: 'single', queryTimeMs: 5, poolSize: 20 }, 2000);
+    expect(withEngine.metrics.rho).toBeCloseTo(noEngine.metrics.rho, 10);
+  });
+
   it('scaleParam adapts to the architecture', () => {
     const sp = (arch: string) =>
       typeof m.scaleParam === 'function' ? m.scaleParam({ architecture: arch }) : m.scaleParam;
