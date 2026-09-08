@@ -1,4 +1,5 @@
 import { deriveConcurrency } from './components/apiServer';
+import { advise, type Advice } from './advise';
 import { solve } from './solver';
 import type { NodeSpec, SolveResult, SystemDesign } from './types';
 
@@ -46,6 +47,8 @@ export interface Analysis {
   summary: string;
   /** Headline grade + how much room to grow. */
   capacity: Capacity;
+  /** Qualitative design-review notes (CAP, replication, caching, resilience …). */
+  advice: Advice[];
 }
 
 const RHO_WARN = 0.8;
@@ -132,6 +135,7 @@ export function analyze(design: SystemDesign, result: SolveResult): Analysis {
   );
 
   const capacity = estimateCapacity(design, result);
+  const advice = advise(design, result);
   const healthy = bottlenecks.length === 0 && result.system.successRate > 0.98;
   if (healthy) {
     return {
@@ -140,6 +144,7 @@ export function analyze(design: SystemDesign, result: SolveResult): Analysis {
       fixes: [],
       summary: 'No component is close to its limit.',
       capacity,
+      advice,
     };
   }
 
@@ -151,7 +156,7 @@ export function analyze(design: SystemDesign, result: SolveResult): Analysis {
   else if (top) tail = ` Best single fix: ${top.label} — won't fully clear it, so stack a few.`;
   const summary = worst ? `${worst.label} is the bottleneck (${worst.reason}).${tail}` : 'System is under strain.';
 
-  return { healthy: false, bottlenecks, fixes, summary, capacity };
+  return { healthy: false, bottlenecks, fixes, summary, capacity, advice };
 }
 
 /** Candidate single-parameter changes, scored by re-solving. */
