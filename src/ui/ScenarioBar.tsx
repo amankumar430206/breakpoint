@@ -189,10 +189,18 @@ export const ScenarioBar = memo(function ScenarioBar() {
           </>
         )}
 
-        <span className="ml-auto shrink-0 pr-1 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
-          {SCENARIOS.find((s) => s.kind === scenario.kind)?.label}
-          {showPeak && ` ×${(scenario.peakFactor ?? 8).toFixed(1)}`} · {scenario.durationSec}s
-        </span>
+        {/* applied scenario settings — mirrors the tray; click to expand */}
+        <button
+          onClick={toggle}
+          title={open ? 'Hide scenario controls' : 'Edit scenario controls'}
+          className="ml-auto flex shrink-0 items-center gap-1.5 pr-1 text-[10px] text-[var(--tm-text-faint)]"
+        >
+          <Chip>{SCENARIOS.find((s) => s.kind === scenario.kind)?.label}</Chip>
+          {showPeak && <Chip>{swingLabel.replace(' ×', '')} ×{(scenario.peakFactor ?? 8).toFixed(1)}</Chip>}
+          <Chip>{scenario.durationSec}s</Chip>
+          <Chip>speed {speed.toFixed(1)}×</Chip>
+          <Chip>seed {seed}</Chip>
+        </button>
       </div>
 
       {/* centered chevron on the bottom edge — toggles the scenario tray */}
@@ -284,3 +292,11 @@ export const ScenarioBar = memo(function ScenarioBar() {
     </div>
   );
 });
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="tabnum rounded bg-[var(--tm-chip)] px-1.5 py-0.5 text-[var(--tm-text-dim)]">
+      {children}
+    </span>
+  );
+}
