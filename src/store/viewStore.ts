@@ -37,11 +37,16 @@ interface ViewState {
   converged: boolean;
   system: ViewSystem;
   simTime: number;
+  /** True between dispatching a solve to the worker and its result landing —
+   *  drives the "solving…" indicator (the analytical pass can be slow for
+   *  very large server counts). */
+  computing: boolean;
   /** Rolling time-series captured while the sim runs. */
   series: SeriesPoint[];
   /** Node whose per-node series to record (set by the drawer / selection). */
   seriesNodeId: string | null;
 
+  setComputing: (v: boolean) => void;
   applyAnalytical: (result: SolveResult, analysis: Analysis, keepLive: boolean) => void;
   applySnapshot: (snap: SimSnapshot, ended: boolean) => void;
   setSeriesNode: (id: string | null) => void;
@@ -83,8 +88,11 @@ export const useViewStore = create<ViewState>((set, get) => ({
   converged: true,
   system: EMPTY_SYSTEM,
   simTime: 0,
+  computing: false,
   series: [],
   seriesNodeId: null,
+
+  setComputing: (v) => set({ computing: v }),
 
   applyAnalytical: (result, analysis, keepLive) => {
     const explains: Record<string, ExplainNote[]> = {};
@@ -93,7 +101,7 @@ export const useViewStore = create<ViewState>((set, get) => ({
     if (keepLive && get().mode === 'live') {
       // Simulation is running — keep live per-node numbers, just refresh the
       // analytical audit + explanations.
-      set({ explains, warnings: result.warnings, analysis, converged: result.converged });
+      set({ explains, warnings: result.warnings, analysis, converged: result.converged, computing: false });
       return;
     }
 
@@ -109,6 +117,7 @@ export const useViewStore = create<ViewState>((set, get) => ({
       converged: result.converged,
       system: result.system,
       simTime: 0,
+      computing: false,
       series: [],
     });
   },

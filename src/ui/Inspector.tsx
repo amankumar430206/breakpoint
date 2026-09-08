@@ -4,6 +4,7 @@ import { useDesignStore } from '@/store/designStore';
 import { useViewStore } from '@/store/viewStore';
 import { describeSchema, prettyLabel, stepFor, type FieldDesc } from '@/lib/schemaForm';
 import { fmtDuration, fmtPct, fmtRps } from '@/lib/format';
+import { Spinner } from './Spinner';
 
 export function Inspector() {
   const nodes = useDesignStore((s) => s.nodes);
@@ -17,6 +18,7 @@ export function Inspector() {
   const perNode = useViewStore((s) => s.perNode);
   const perEdge = useViewStore((s) => s.perEdge);
   const explains = useViewStore((s) => s.explains);
+  const computing = useViewStore((s) => s.computing);
 
   const node = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const edge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -26,6 +28,11 @@ export function Inspector() {
 
   return (
     <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-l border-[var(--tm-border)] bg-[var(--tm-panel)]">
+      {computing && (
+        <div className="flex items-center gap-1.5 border-b border-[var(--tm-border)] bg-[var(--tm-panel-2)] px-3 py-1.5 text-[11px] text-[var(--tm-text-faint)]">
+          <Spinner size={11} /> recalculating…
+        </div>
+      )}
       {node && (
         <NodeInspector
           key={node.id}

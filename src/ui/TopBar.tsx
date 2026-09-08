@@ -7,6 +7,7 @@ import { fmtDuration, fmtPct, fmtRps } from '@/lib/format';
 import { PRESETS } from '@/presets';
 import { HelpTip } from './HelpTip';
 import { ShareMenu } from './ShareMenu';
+import { Spinner } from './Spinner';
 
 export function TopBar({
   title,
@@ -39,6 +40,7 @@ export function TopBar({
   const warnings = useViewStore((s) => s.warnings);
   const mode = useViewStore((s) => s.mode);
   const simTime = useViewStore((s) => s.simTime);
+  const computing = useViewStore((s) => s.computing);
 
   const err = warnings.find((w) => w.level === 'error');
 
@@ -153,6 +155,12 @@ export function TopBar({
           alert={system.successRate < 0.99}
           tip="Share of offered requests that got a good response. Drops (429/503) and errors both count against it."
         />
+        {computing && (
+          <span className="flex items-center gap-1.5 text-[var(--tm-text-faint)]" title="Recalculating metrics">
+            <Spinner size={11} />
+            solving…
+          </span>
+        )}
         <span
           className="rounded px-2 py-0.5 text-[11px]"
           style={{

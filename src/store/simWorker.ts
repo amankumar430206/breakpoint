@@ -73,9 +73,15 @@ export function useSimWorker(): void {
   // Debounce re-init so dragging a slider coalesces into one recompute.
   useEffect(() => {
     const id = setTimeout(() => {
+      useViewStore.getState().setComputing(true);
       send({ type: 'init', design: toDesign(nodes, edges, { scenario, seed, speed }), running });
     }, 90);
-    return () => clearTimeout(id);
+    // Failsafe: never leave the indicator stuck if the worker doesn't answer.
+    const failsafe = setTimeout(() => useViewStore.getState().setComputing(false), 15000);
+    return () => {
+      clearTimeout(id);
+      clearTimeout(failsafe);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
