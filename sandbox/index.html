@@ -2,7 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" id="tm-viewport" />
+    <script>
+      // The sandbox is a desktop-scale tool (canvas + side panels + drawer).
+      // On phones, render it at desktop width and let the reader pan / pinch-zoom
+      // rather than cramming an unusable layout. Runs before the app mounts so
+      // there is no reflow flash.
+      if (window.matchMedia('(max-width: 820px) and (pointer: coarse)').matches) {
+        document
+          .getElementById('tm-viewport')
+          .setAttribute('content', 'width=1280');
+      }
+    </script>
     <title>Breakpoint — system design load simulator</title>
     <meta
       name="description"
