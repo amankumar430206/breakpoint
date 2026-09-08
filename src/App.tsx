@@ -13,30 +13,53 @@ import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useSimWorker } from '@/store/simWorker';
 import { useThemeStore } from '@/store/themeStore';
-import { fromDesign } from '@/lib/design';
+import { fromDesign, toDesign } from '@/lib/design';
 import { designFromHash } from '@/lib/shareUrl';
 import { randomDesign } from '@/lib/randomDesign';
+import { newProjectId, saveProject } from '@/lib/projectStore';
 import { getPreset } from '@/presets';
 
 export function App() {
-  const nodeCount = useDesignStore((s) => s.nodes.length);
+  const nodes = useDesignStore((s) => s.nodes);
+  const edges = useDesignStore((s) => s.edges);
+  const nodeCount = nodes.length;
   const replaceGraph = useDesignStore((s) => s.replaceGraph);
   const loadSim = useSimStore((s) => s.loadSim);
   const reset = useSimStore((s) => s.reset);
+  const scenario = useSimStore((s) => s.scenario);
+  const seed = useSimStore((s) => s.seed);
   const [title, setTitle] = useState('Untitled design');
+  const [projectId, setProjectId] = useState<string | null>(null);
   const theme = useThemeStore((s) => s.theme);
 
   useSimWorker();
 
   const applyDesign = useCallback(
-    (design: SystemDesign) => {
+    (design: SystemDesign, id: string | null = null) => {
       const { nodes, edges } = fromDesign(design);
       replaceGraph(nodes, edges);
       loadSim(design.sim);
       setTitle(design.name);
+      setProjectId(id);
     },
     [replaceGraph, loadSim],
   );
+
+  // Auto-save the working design into the browser-local library (debounced), so
+  // the "recent" list fills itself. A brand-new design gets a fresh id.
+  useEffect(() => {
+    if (nodeCount === 0) return;
+    const t = setTimeout(() => {
+      const { speed } = useSimStore.getState();
+      const design = toDesign(nodes, edges, { scenario, seed, speed }, { name: title });
+      setProjectId((cur) => {
+        const id = cur ?? newProjectId();
+        saveProject(design, id);
+        return id;
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [nodes, edges, scenario, seed, title, nodeCount]);
 
   const loadPreset = useCallback(
     (id: string) => {
@@ -56,9 +79,11 @@ export function App() {
     reset();
     replaceGraph([], []);
     setTitle('Untitled design');
+    setProjectId(null);
   };
 
   const randomize = () => applyDesign(randomDesign());
+  const openProject = (design: SystemDesign, id: string) => applyDesign(design, id);
 
   return (
     <ReactFlowProvider>
@@ -68,10 +93,13 @@ export function App() {
         <TopBar
           title={title}
           hasDesign={nodeCount > 0}
+          projectId={projectId}
           onNew={startNew}
           onRandomize={randomize}
           onLoadPreset={loadPreset}
-          onImport={applyDesign}
+          onImport={(d) => applyDesign(d)}
+          onOpenProject={openProject}
+          onProjectSaved={setProjectId}
           onTitleChange={setTitle}
         />
         <ScenarioBar />
@@ -81,7 +109,12 @@ export function App() {
             <div className="relative min-h-0 flex-1">
               <Canvas />
               {nodeCount === 0 ? (
-                <EmptyState onLoaded={setTitle} onLoadPreset={loadPreset} onRandomize={randomize} />
+                <EmptyState
+                  onLoaded={setTitle}
+                  onLoadPreset={loadPreset}
+                  onRandomize={randomize}
+                  onOpenProject={openProject}
+                />
               ) : (
                 <BottleneckPanel />
               )}

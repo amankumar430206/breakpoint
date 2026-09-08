@@ -1,17 +1,22 @@
+import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
+import { listProjects, relativeTime } from '@/lib/projectStore';
 import { PRESETS } from '@/presets';
 
 export function EmptyState({
   onLoaded,
   onLoadPreset,
   onRandomize,
+  onOpenProject,
 }: {
   onLoaded: (title: string) => void;
   onLoadPreset: (id: string) => void;
   onRandomize: () => void;
+  onOpenProject: (d: SystemDesign, id: string) => void;
 }) {
   const replaceGraph = useDesignStore((s) => s.replaceGraph);
   const addNode = useDesignStore((s) => s.addNode);
+  const recent = listProjects().slice(0, 4);
 
   const blank = () => {
     replaceGraph([], []);
@@ -29,6 +34,26 @@ export function EmptyState({
           Drop components from the left, connect them top-to-bottom, then press Play to push
           real traffic through and see where it breaks.
         </p>
+
+        {recent.length > 0 && (
+          <div className="mt-5">
+            <div className="mb-2 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+              Recent
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {recent.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onOpenProject(p.design, p.id)}
+                  title={`${p.design.nodes.length} nodes · ${relativeTime(p.updatedAt)}`}
+                  className="max-w-[180px] truncate rounded-lg border border-[var(--tm-border-2)] bg-[var(--tm-btn)] px-3 py-1.5 text-xs text-[var(--tm-text)] hover:bg-[var(--tm-btn-hover)]"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5">
           <div className="mb-2 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">

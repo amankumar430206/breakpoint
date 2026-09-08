@@ -7,23 +7,30 @@ import { fmtDuration, fmtPct, fmtRps } from '@/lib/format';
 import { PRESETS } from '@/presets';
 import { HelpTip } from './HelpTip';
 import { ShareMenu } from './ShareMenu';
+import { ProjectsMenu } from './ProjectsMenu';
 import { Spinner } from './Spinner';
 
 export function TopBar({
   title,
   hasDesign,
+  projectId,
   onNew,
   onRandomize,
   onLoadPreset,
   onImport,
+  onOpenProject,
+  onProjectSaved,
   onTitleChange,
 }: {
   title: string;
   hasDesign: boolean;
+  projectId: string | null;
   onNew: () => void;
   onRandomize: () => void;
   onLoadPreset: (id: string) => void;
   onImport: (d: SystemDesign) => void;
+  onOpenProject: (d: SystemDesign, id: string) => void;
+  onProjectSaved: (id: string) => void;
   onTitleChange: (t: string) => void;
 }) {
   const running = useSimStore((s) => s.running);
@@ -95,6 +102,13 @@ export function TopBar({
       >
         🎲 Random
       </button>
+      <ProjectsMenu
+        title={title}
+        currentId={projectId}
+        hasDesign={hasDesign}
+        onOpen={onOpenProject}
+        onSaved={onProjectSaved}
+      />
       <ShareMenu title={title} onImport={onImport} />
 
       <button
