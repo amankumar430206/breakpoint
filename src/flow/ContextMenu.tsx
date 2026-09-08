@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { allModels, resolveScaleParam, getModel, type ComponentType } from '@/engine';
+import { allModels, resolveScaleParam, getModel, faultId, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
+import { useSimStore } from '@/store/simStore';
 import { autoLayout } from '@/lib/layout';
 import { ComponentIcon } from './icons';
 
@@ -17,12 +18,16 @@ export interface MenuState {
 
 export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose: () => void }) {
   const s = useDesignStore();
+  const toggleFault = useSimStore((st) => st.toggleFault);
+  const faults = useSimStore((st) => st.faults);
   const { fitView, screenToFlowPosition, zoomTo } = useReactFlow();
   const [addOpen, setAddOpen] = useState(false);
 
   if (!menu) return null;
 
   const node = menu.id ? s.nodes.find((n) => n.id === menu.id) : undefined;
+  const faulted = (kind: 'kill' | 'slow' | 'degrade' | 'partition', id: string) =>
+    faults.some((f) => f.id === faultId(kind, id));
   const close = () => {
     setAddOpen(false);
     onClose();
@@ -61,6 +66,16 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose
             )}
             <Item onClick={run(() => s.resetNodeParams(node.id))}>Reset parameters</Item>
             <Divider />
+            <Item onClick={run(() => toggleFault('kill', node.id))}>
+              {faulted('kill', node.id) ? '↩ Revive node' : '💀 Kill node'}
+            </Item>
+            <Item onClick={run(() => toggleFault('slow', node.id, 300))}>
+              {faulted('slow', node.id) ? '↩ Un-slow' : '🐌 Slow +300 ms'}
+            </Item>
+            <Item onClick={run(() => toggleFault('degrade', node.id, 0.25))}>
+              {faulted('degrade', node.id) ? '↩ Un-degrade' : '⚠ Degrade 25%'}
+            </Item>
+            <Divider />
             <Item danger onClick={run(() => s.removeNode(node.id))}>
               Delete component
             </Item>
@@ -72,6 +87,10 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose
             <Item onClick={run(() => s.reverseEdge(menu.id!))}>Reverse direction</Item>
             <Item onClick={run(() => s.resetEdgeParams(menu.id!))}>Clear retries &amp; timeout</Item>
             <Item onClick={run(() => s.selectEdge(menu.id!))}>Inspect connection</Item>
+            <Divider />
+            <Item onClick={run(() => toggleFault('partition', menu.id!))}>
+              {faulted('partition', menu.id) ? '↩ Restore link' : '✂ Cut link'}
+            </Item>
             <Divider />
             <Item danger onClick={run(() => s.removeEdge(menu.id!))}>
               Delete connection

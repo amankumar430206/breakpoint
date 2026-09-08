@@ -84,6 +84,9 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const d = data as ComponentNodeData;
   const params = d.params;
   const m = useViewStore((s) => s.perNode[id]);
+  const faultKind = useSimStore(
+    (s) => s.faults.find((f) => f.targetId === id && f.kind !== 'partition')?.kind,
+  );
   const updateNodeParams = useDesignStore((s) => s.updateNodeParams);
   const flowDir = useDesignStore((s) => s.flowDir);
   const targetPos = flowDir === 'LR' ? Position.Left : Position.Top;
@@ -234,6 +237,15 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
             <ComponentIcon type={t} />
           </span>
           <span className="truncate text-[13px] font-medium">{d.label}</span>
+          {faultKind && (
+            <span
+              className="shrink-0 rounded px-1 text-[9px] font-semibold uppercase"
+              style={{ background: 'var(--tm-crit-bg)', color: 'var(--tm-crit-fg)' }}
+              title={`Chaos: ${faultKind}`}
+            >
+              {faultKind === 'kill' ? '💀' : faultKind === 'slow' ? '🐌' : '⚠'}
+            </span>
+          )}
           {t === 'apiServer' && d.params.colocatedDb ? (
             <span
               className="shrink-0 rounded bg-[var(--tm-chip)] px-1 text-[9px] font-medium text-[var(--tm-text-dim)]"

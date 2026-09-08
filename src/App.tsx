@@ -8,6 +8,7 @@ import { Palette } from '@/ui/Palette';
 import { Inspector } from '@/ui/Inspector';
 import { EmptyState } from '@/ui/EmptyState';
 import { BottleneckPanel } from '@/ui/BottleneckPanel';
+import { ChaosBar } from '@/ui/ChaosBar';
 import { MetricsDrawer } from '@/ui/MetricsDrawer';
 import { AutoSave } from '@/ui/AutoSave';
 import { useDesignStore } from '@/store/designStore';
@@ -103,6 +104,7 @@ export function App() {
               ) : (
                 <BottleneckPanel />
               )}
+              {nodeCount > 0 && <ChaosBar />}
             </div>
             {nodeCount > 0 && <MetricsDrawer />}
           </main>

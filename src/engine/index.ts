@@ -8,6 +8,8 @@ export { analyze } from './analyze';
 export type { Analysis, Bottleneck, Fix, Capacity } from './analyze';
 export { advise } from './advise';
 export type { Advice } from './advise';
+export { applyFaults, faultId } from './faults';
+export type { Fault, FaultKind } from './faults';
 export { DB_ENGINES } from './components/sqlDatabase';
 export type { DbEngine, DbEngineSpec } from './components/sqlDatabase';
 export { buildGraph, topoOrder, expectedAttempts } from './flow';

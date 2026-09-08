@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { applyFaults, type Fault } from '@/engine';
 import type { FromWorker, ToWorker } from '@/worker/protocol';
 import { toDesign } from '@/lib/design';
 import { useDesignStore } from './designStore';
@@ -13,6 +14,7 @@ function designSignature(
   edges: ReturnType<typeof useDesignStore.getState>['edges'],
   scenario: unknown,
   seed: number,
+  faults: Fault[],
 ): string {
   const n = nodes
     .map((x) => `${x.id}:${x.type}:${JSON.stringify(x.data.params)}:${x.data.zone ?? ''}`)
@@ -22,7 +24,11 @@ function designSignature(
     .map((x) => `${x.id}:${x.source}>${x.target}:${JSON.stringify(x.data?.params ?? {})}`)
     .sort()
     .join('|');
-  return `${n}#${e}#${JSON.stringify(scenario)}#${seed}`;
+  const f = faults
+    .map((x) => `${x.id}:${x.magnitude ?? ''}`)
+    .sort()
+    .join('|');
+  return `${n}#${e}#${JSON.stringify(scenario)}#${seed}#${f}`;
 }
 
 /**
@@ -38,6 +44,7 @@ export function useSimWorker(): void {
   const seed = useSimStore((s) => s.seed);
   const speed = useSimStore((s) => s.speed);
   const running = useSimStore((s) => s.running);
+  const faults = useSimStore((s) => s.faults);
   const pause = useSimStore((s) => s.pause);
 
   useEffect(() => {
@@ -66,15 +73,19 @@ export function useSimWorker(): void {
   const send = (msg: ToWorker) => workerRef.current?.postMessage(msg);
 
   const signature = useMemo(
-    () => designSignature(nodes, edges, scenario, seed),
-    [nodes, edges, scenario, seed],
+    () => designSignature(nodes, edges, scenario, seed, faults),
+    [nodes, edges, scenario, seed, faults],
   );
 
   // Debounce re-init so dragging a slider coalesces into one recompute.
   useEffect(() => {
     const id = setTimeout(() => {
       useViewStore.getState().setComputing(true);
-      send({ type: 'init', design: toDesign(nodes, edges, { scenario, seed, speed }), running });
+      send({
+        type: 'init',
+        design: applyFaults(toDesign(nodes, edges, { scenario, seed, speed }), faults),
+        running,
+      });
     }, 90);
     // Failsafe: never leave the indicator stuck if the worker doesn't answer.
     const failsafe = setTimeout(() => useViewStore.getState().setComputing(false), 15000);

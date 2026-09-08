@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { LoadMode, ScenarioConfig, ScenarioKind, SimConfig } from '@/engine';
+import { faultId } from '@/engine';
+import type { Fault, FaultKind, LoadMode, ScenarioConfig, ScenarioKind, SimConfig } from '@/engine';
 
 export const DEFAULT_SCENARIO: ScenarioConfig = {
   kind: 'constant',
@@ -15,6 +16,13 @@ interface SimState extends SimConfig {
   running: boolean;
   /** Simulated seconds elapsed (advanced by the DES; 0 for pure analytical view). */
   clock: number;
+  /** Transient chaos overlay — applied to the design before it reaches the engines. */
+  faults: Fault[];
+
+  /** Add a fault, or remove it if the same kind already targets that id (toggle). */
+  toggleFault: (kind: FaultKind, targetId: string, magnitude?: number) => void;
+  removeFault: (id: string) => void;
+  clearFaults: () => void;
 
   setMode: (mode: LoadMode) => void;
   setScenarioKind: (kind: ScenarioKind) => void;
@@ -37,6 +45,20 @@ export const useSimStore = create<SimState>((set) => ({
   speed: 4,
   running: false,
   clock: 0,
+  faults: [],
+
+  toggleFault: (kind, targetId, magnitude) =>
+    set((s) => {
+      const id = faultId(kind, targetId);
+      const exists = s.faults.some((f) => f.id === id);
+      return {
+        faults: exists
+          ? s.faults.filter((f) => f.id !== id)
+          : [...s.faults, { id, kind, targetId, magnitude }],
+      };
+    }),
+  removeFault: (id) => set((s) => ({ faults: s.faults.filter((f) => f.id !== id) })),
+  clearFaults: () => set({ faults: [] }),
 
   setMode: (mode) =>
     set((s) => {
@@ -66,5 +88,5 @@ export const useSimStore = create<SimState>((set) => ({
   pause: () => set({ running: false }),
   reset: () => set({ running: false, clock: 0 }),
   loadSim: (sim) =>
-    set({ ...sim, scenario: { ...DEFAULT_SCENARIO, ...sim.scenario }, running: false, clock: 0 }),
+    set({ ...sim, scenario: { ...DEFAULT_SCENARIO, ...sim.scenario }, running: false, clock: 0, faults: [] }),
 }));
