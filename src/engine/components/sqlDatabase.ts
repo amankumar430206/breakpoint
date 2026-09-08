@@ -56,14 +56,14 @@ export const sqlDatabaseModel: ComponentModel = {
       .enum(['single', 'primary-replica', 'multi-primary', 'sharded'])
       .default('primary-replica'),
     queryTimeMs: z.number().positive().max(60000).default(8),
-    poolSize: z.number().int().positive().default(20),
-    queueLimit: z.number().int().nonnegative().default(100),
+    poolSize: z.number().int().positive().max(10000).default(20),
+    queueLimit: z.number().int().nonnegative().max(200000).default(100),
     loadShedding: z.boolean().default(true),
     readRatio: z.number().min(0).max(1).default(0.8),
     intrinsicErrorRate: z.number().min(0).max(1).default(0.0005),
-    readReplicas: z.number().int().nonnegative().max(24).default(0),
-    primaries: z.number().int().min(1).max(16).default(3),
-    shards: z.number().int().min(1).max(32).default(4),
+    readReplicas: z.number().int().nonnegative().max(64).default(0),
+    primaries: z.number().int().min(1).max(32).default(3),
+    shards: z.number().int().min(1).max(1024).default(4),
     replicationLagMs: z.number().nonnegative().max(60000).default(50),
     writeCoordinationPct: z.number().min(0).max(200).default(15),
     crossShardPct: z.number().min(0).max(100).default(5),
@@ -88,11 +88,11 @@ export const sqlDatabaseModel: ComponentModel = {
   scaleParam: (params) => {
     switch (str(params, 'architecture', 'primary-replica')) {
       case 'primary-replica':
-        return { key: 'readReplicas', label: 'read replicas', min: 0, max: 24 };
+        return { key: 'readReplicas', label: 'read replicas', min: 0, max: 64 };
       case 'multi-primary':
-        return { key: 'primaries', label: 'primaries', min: 1, max: 16 };
+        return { key: 'primaries', label: 'primaries', min: 1, max: 32 };
       case 'sharded':
-        return { key: 'shards', label: 'shards', min: 1, max: 32 };
+        return { key: 'shards', label: 'shards', min: 1, max: 512 };
       default:
         return undefined;
     }

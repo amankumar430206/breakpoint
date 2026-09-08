@@ -23,7 +23,7 @@ export const cdnModel: ComponentModel = {
   paramSchema: z.object({
     offloadRatio: z.number().min(0).max(1).default(0.85),
     edgeLatencyMs: z.number().nonnegative().max(2000).default(15),
-    edgeCapacityRps: z.number().positive().default(500000),
+    edgeCapacityRps: z.number().positive().max(50000000).default(500000),
     intrinsicErrorRate: z.number().min(0).max(1).default(0.0002),
   }),
   paramDocs: {

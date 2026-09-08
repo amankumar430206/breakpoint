@@ -26,7 +26,7 @@ export const cacheModel: ComponentModel = {
   paramSchema: z.object({
     hitRatio: z.number().min(0).max(1).default(0.8),
     hitLatencyMs: z.number().nonnegative().default(1),
-    capacityRps: z.number().positive().default(120000),
+    capacityRps: z.number().positive().max(10000000).default(120000),
     intrinsicErrorRate: z.number().min(0).max(1).default(0.0001),
   }),
   paramDocs: {

@@ -113,33 +113,6 @@ function NodeInspector({
         />
       </div>
 
-      {model.presets && model.presets.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
-            standard sizes
-          </span>
-          <div className="flex flex-wrap gap-1">
-            {model.presets.map((ps) => {
-              const active = Object.entries(ps.patch).every(([k, v]) => params[k] === v);
-              return (
-                <button
-                  key={ps.label}
-                  title={ps.hint}
-                  onClick={() => onParam(ps.patch)}
-                  className="tabnum rounded px-1.5 py-0.5 text-[10px]"
-                  style={{
-                    background: active ? 'var(--tm-chip-active)' : 'var(--tm-chip)',
-                    color: active ? 'var(--tm-accent-soft)' : 'var(--tm-text-dim)',
-                  }}
-                >
-                  {ps.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {m && (
         <div className="tabnum grid grid-cols-2 gap-1 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
           <Metric label="utilization ρ" value={m.rho.toFixed(3)} alert={m.rho >= 1} />
@@ -162,6 +135,33 @@ function NodeInspector({
           />
         ))}
       </div>
+
+      {model.presets && model.presets.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-[var(--tm-border)] pt-2">
+          <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+            jump to a standard size
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {model.presets.map((ps) => {
+              const active = Object.entries(ps.patch).every(([k, v]) => params[k] === v);
+              return (
+                <button
+                  key={ps.label}
+                  title={ps.hint}
+                  onClick={() => onParam(ps.patch)}
+                  className="tabnum rounded px-1.5 py-0.5 text-[10px]"
+                  style={{
+                    background: active ? 'var(--tm-chip-active)' : 'var(--tm-chip)',
+                    color: active ? 'var(--tm-accent-soft)' : 'var(--tm-text-dim)',
+                  }}
+                >
+                  {ps.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {explain?.length ? (
         <div className="flex flex-col gap-1.5 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px] text-[var(--tm-text-dim)]">

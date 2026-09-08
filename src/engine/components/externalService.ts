@@ -24,7 +24,7 @@ export const externalServiceModel: ComponentModel = {
   paramSchema: z.object({
     latencyMs: z.number().nonnegative().max(60000).default(120),
     jitterMs: z.number().nonnegative().max(60000).default(80),
-    rateLimitRps: z.number().positive().default(500),
+    rateLimitRps: z.number().positive().max(2000000).default(500),
     errorRate: z.number().min(0).max(1).default(0.01),
     timeoutSec: z.number().positive().max(120).default(5),
   }),

@@ -24,7 +24,7 @@ export const queueModel: ComponentModel = {
   },
   paramSchema: z.object({
     enqueueLatencyMs: z.number().nonnegative().max(2000).default(2),
-    brokerThroughputRps: z.number().positive().default(50000),
+    brokerThroughputRps: z.number().positive().max(50000000).default(50000),
     partitions: z.number().int().positive().max(1024).default(3),
     retentionSec: z.number().positive().default(604800),
   }),

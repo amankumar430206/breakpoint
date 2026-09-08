@@ -57,12 +57,20 @@ export function describeSchema(schema: z.ZodTypeAny): FieldDesc[] {
 
 /** A sensible slider step for a numeric field given its bounds. */
 export function stepFor(f: FieldDesc): number {
-  if (f.int) return 1;
   const span = (f.max ?? 1) - (f.min ?? 0);
+  if (f.int) {
+    // keep integer sliders draggable across very wide capacity ranges
+    if (span > 5_000_000) return 100_000;
+    if (span > 200_000) return 1_000;
+    if (span > 5_000) return 10;
+    return 1;
+  }
   if (span <= 2) return 0.01;
   if (span <= 100) return 0.1;
   if (span <= 5000) return 1;
-  return 10;
+  if (span <= 200_000) return 10;
+  if (span <= 5_000_000) return 1_000;
+  return 100_000;
 }
 
 const ACRONYMS: Record<string, string> = {

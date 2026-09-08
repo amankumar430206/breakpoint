@@ -30,12 +30,12 @@ export const workerModel: ComponentModel = {
   },
   paramSchema: z.object({
     jobTimeMs: z.number().positive().max(120000).default(150),
-    vcpus: z.number().positive().max(128).default(2),
-    ramGB: z.number().positive().max(1024).default(4),
-    parallelPerVcpu: z.number().positive().max(64).default(3),
+    vcpus: z.number().positive().max(192).default(2),
+    ramGB: z.number().positive().max(4096).default(4),
+    parallelPerVcpu: z.number().positive().max(256).default(3),
     memPerReqMB: z.number().positive().max(8192).default(96),
-    replicas: z.number().int().positive().default(1),
-    queueLimit: z.number().int().nonnegative().default(2000),
+    replicas: z.number().int().positive().max(500).default(1),
+    queueLimit: z.number().int().nonnegative().max(200000).default(2000),
     loadShedding: z.boolean().default(false),
     intrinsicErrorRate: z.number().min(0).max(1).default(0.005),
   }),
@@ -50,7 +50,7 @@ export const workerModel: ComponentModel = {
     loadShedding: 'Off (default): the pool never drops — it falls behind and the queue grows.',
     intrinsicErrorRate: 'Baseline job failure rate.',
   },
-  scaleParam: { key: 'replicas', label: 'workers', min: 1, max: 64 },
+  scaleParam: { key: 'replicas', label: 'workers', min: 1, max: 256 },
 
   presets: [
     { label: '2·4', hint: 'Medium — 2 vCPU / 4 GB (t3.medium)', patch: { vcpus: 2, ramGB: 4 } },

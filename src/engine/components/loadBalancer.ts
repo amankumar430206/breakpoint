@@ -25,8 +25,8 @@ export const loadBalancerModel: ComponentModel = {
   paramSchema: z.object({
     algorithm: z.enum(['round-robin', 'least-conn', 'random']).default('round-robin'),
     latencyMs: z.number().nonnegative().default(1),
-    capacityRps: z.number().positive().default(50000),
-    instances: z.number().int().positive().max(16).default(1),
+    capacityRps: z.number().positive().max(10000000).default(50000),
+    instances: z.number().int().positive().max(64).default(1),
   }),
   paramDocs: {
     algorithm: 'Backend selection policy (affects tail latency in the simulator).',
@@ -35,7 +35,7 @@ export const loadBalancerModel: ComponentModel = {
     instances: 'Redundant balancer instances sharing the load (active-active) — also removes the single point of failure.',
   },
 
-  scaleParam: { key: 'instances', label: 'instances', min: 1, max: 16 },
+  scaleParam: { key: 'instances', label: 'instances', min: 1, max: 64 },
 
   presets: [
     { label: '20k', hint: 'Small proxy box — nginx / HAProxy on 1–2 vCPU', patch: { capacityRps: 20000 } },

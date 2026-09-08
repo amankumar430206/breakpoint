@@ -22,7 +22,7 @@ export const objectStoreModel: ComponentModel = {
   },
   paramSchema: z.object({
     opLatencyMs: z.number().nonnegative().max(5000).default(25),
-    opsRps: z.number().positive().default(200000),
+    opsRps: z.number().positive().max(20000000).default(200000),
     intrinsicErrorRate: z.number().min(0).max(1).default(0.0005),
   }),
   paramDocs: {
