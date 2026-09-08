@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { allModels, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { ComponentIcon } from '@/flow/icons';
@@ -22,13 +22,62 @@ const CATEGORY_LABEL: Record<string, string> = {
   resilience: 'Resilience',
 };
 
+const OPEN_KEY = 'tm-palette-open';
+const readOpen = () => {
+  try {
+    return localStorage.getItem(OPEN_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+
 function PaletteInner() {
   const addNode = useDesignStore((s) => s.addNode);
   const models = allModels();
+  const [open, setOpen] = useState(readOpen);
+  const toggle = () => {
+    setOpen((o) => {
+      try {
+        localStorage.setItem(OPEN_KEY, o ? '0' : '1');
+      } catch {
+        /* ignore */
+      }
+      return !o;
+    });
+  };
+
+  if (!open) {
+    return (
+      <aside className="flex w-8 shrink-0 flex-col items-center border-r border-[var(--tm-border)] bg-[var(--tm-panel)] py-2">
+        <button
+          onClick={toggle}
+          title="Show components"
+          className="rounded border border-[var(--tm-border-2)] bg-[var(--tm-btn)] px-1 py-0.5 text-xs text-[var(--tm-text-dim)] hover:bg-[var(--tm-btn-hover)]"
+        >
+          ›
+        </button>
+        <span
+          className="mt-3 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]"
+          style={{ writingMode: 'vertical-rl' }}
+        >
+          Components
+        </span>
+      </aside>
+    );
+  }
 
   return (
     <aside className="w-52 shrink-0 overflow-y-auto border-r border-[var(--tm-border)] bg-[var(--tm-panel)] p-2">
-      <div className="mb-2 px-1 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">Components</div>
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">Components</span>
+        <button
+          onClick={toggle}
+          title="Hide components"
+          className="rounded px-1 text-xs text-[var(--tm-text-faint)] hover:bg-[var(--tm-btn)] hover:text-[var(--tm-text)]"
+        >
+          ‹
+        </button>
+      </div>
       {CATEGORY_ORDER.map((cat) => {
         const items = models.filter((m) => m.category === cat);
         if (!items.length) return null;
