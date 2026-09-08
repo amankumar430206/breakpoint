@@ -36,6 +36,7 @@ export const cacheModel: ComponentModel = {
     intrinsicErrorRate: 'Baseline cache error/unavailability rate.',
   },
 
+  presetLegend: 'ops/s capacity',
   presets: [
     { label: '50k', hint: 'cache.t3.medium — small Redis / Memcached node', patch: { capacityRps: 50000 } },
     { label: '120k', hint: 'cache.m6g.large', patch: { capacityRps: 120000 } },

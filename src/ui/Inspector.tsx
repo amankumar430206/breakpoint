@@ -3,7 +3,15 @@ import { getModel } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
-import { describeSchema, prettyLabel, stepFor, type FieldDesc } from '@/lib/schemaForm';
+import {
+  chipValue,
+  describeSchema,
+  fieldPresets,
+  prettyLabel,
+  stepFor,
+  type FieldDesc,
+} from '@/lib/schemaForm';
+import type { ComponentModel } from '@/engine';
 import { fmtDuration, fmtPct, fmtRps } from '@/lib/format';
 import { Spinner } from './Spinner';
 
@@ -31,6 +39,13 @@ export function Inspector() {
         <div className="flex items-center gap-1.5 border-b border-[var(--tm-border)] bg-[var(--tm-panel-2)] px-3 py-1.5 text-[11px] text-[var(--tm-text-faint)]">
           <Spinner size={11} /> recalculating…
         </div>
+      )}
+      {node && node.type !== 'client' && (
+        <StandardSizes
+          model={getModel(node.type as never)}
+          params={node.data.params}
+          onPatch={(p) => updateNodeParams(node.id, p)}
+        />
       )}
       {node && node.type === 'client' && (
         <ClientInspector
@@ -61,6 +76,51 @@ export function Inspector() {
         />
       )}
     </aside>
+  );
+}
+
+/** Sticky "standard instance" row — quick-pick param bundles, kept in view
+ *  while the rest of the inspector scrolls. */
+function StandardSizes({
+  model,
+  params,
+  onPatch,
+}: {
+  model: ComponentModel;
+  params: Record<string, unknown>;
+  onPatch: (patch: Record<string, unknown>) => void;
+}) {
+  if (!model.presets?.length) return null;
+  return (
+    <div className="sticky top-0 z-10 flex flex-col gap-1 border-b border-[var(--tm-border)] bg-[var(--tm-panel)] px-3 py-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+          standard instance
+        </span>
+        {model.presetLegend && (
+          <span className="text-[9px] text-[var(--tm-text-faint)]">{model.presetLegend}</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {model.presets.map((ps) => {
+          const active = Object.entries(ps.patch).every(([k, v]) => params[k] === v);
+          return (
+            <button
+              key={ps.label}
+              title={ps.hint}
+              onClick={() => onPatch(ps.patch)}
+              className="tabnum rounded px-1.5 py-0.5 text-[10px]"
+              style={{
+                background: active ? 'var(--tm-chip-active)' : 'var(--tm-chip)',
+                color: active ? 'var(--tm-accent-soft)' : 'var(--tm-text-dim)',
+              }}
+            >
+              {ps.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -125,33 +185,6 @@ function NodeInspector({
           />
         ))}
       </div>
-
-      {model.presets && model.presets.length > 0 && (
-        <div className="flex flex-col gap-1 border-t border-[var(--tm-border)] pt-2">
-          <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
-            jump to a standard size
-          </span>
-          <div className="flex flex-wrap gap-1">
-            {model.presets.map((ps) => {
-              const active = Object.entries(ps.patch).every(([k, v]) => params[k] === v);
-              return (
-                <button
-                  key={ps.label}
-                  title={ps.hint}
-                  onClick={() => onParam(ps.patch)}
-                  className="tabnum rounded px-1.5 py-0.5 text-[10px]"
-                  style={{
-                    background: active ? 'var(--tm-chip-active)' : 'var(--tm-chip)',
-                    color: active ? 'var(--tm-accent-soft)' : 'var(--tm-text-dim)',
-                  }}
-                >
-                  {ps.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {explain?.length ? (
         <div className="flex flex-col gap-1.5 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px] text-[var(--tm-text-dim)]">
@@ -449,6 +482,7 @@ function Field({
   doc?: string;
   onChange: (v: unknown) => void;
 }) {
+  const presets = f.kind === 'number' ? fieldPresets(f) : [];
   return (
     <label className="flex flex-col gap-1 text-[11px]">
       <span className="flex items-center justify-between">
@@ -495,6 +529,25 @@ function Field({
           onChange={(e) => onChange(Number(e.target.value))}
           className="accent-[var(--tm-accent)]"
         />
+      )}
+
+      {presets.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {presets.map((pv) => (
+            <button
+              key={pv}
+              type="button"
+              onClick={() => onChange(pv)}
+              className="tabnum rounded px-1 py-0.5 text-[9px]"
+              style={{
+                background: value === pv ? 'var(--tm-chip-active)' : 'var(--tm-chip)',
+                color: value === pv ? 'var(--tm-accent-soft)' : 'var(--tm-text-faint)',
+              }}
+            >
+              {chipValue(pv)}
+            </button>
+          ))}
+        </div>
       )}
 
       {f.kind === 'string' && (

@@ -52,6 +52,7 @@ export const workerModel: ComponentModel = {
   },
   scaleParam: { key: 'replicas', label: 'workers', min: 1, max: 256 },
 
+  presetLegend: 'vCPU · RAM (GB)',
   presets: [
     { label: '2·4', hint: 'Medium — 2 vCPU / 4 GB (t3.medium)', patch: { vcpus: 2, ramGB: 4 } },
     { label: '2·8', hint: 'General large — 2 vCPU / 8 GB (m5.large)', patch: { vcpus: 2, ramGB: 8 } },

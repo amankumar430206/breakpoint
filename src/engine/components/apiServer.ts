@@ -125,6 +125,7 @@ export const apiServerModel: ComponentModel = {
 
   // Standard cloud instance shapes (vCPU · GB). Names are AWS; the rough
   // equivalents on GCP / Azure / DigitalOcean have the same shape.
+  presetLegend: 'vCPU · RAM (GB)',
   presets: [
     { label: '1·2', hint: 'Small — 1 vCPU / 2 GB (t3.small · e2-small · s-1vcpu-2gb)', patch: { vcpus: 1, ramGB: 2, storageGB: 20 } },
     { label: '2·4', hint: 'Medium — 2 vCPU / 4 GB (t3.medium · e2-medium)', patch: { vcpus: 2, ramGB: 4, storageGB: 40 } },

@@ -37,6 +37,7 @@ export const loadBalancerModel: ComponentModel = {
 
   scaleParam: { key: 'instances', label: 'instances', min: 1, max: 64 },
 
+  presetLegend: 'forwarding capacity (req/s)',
   presets: [
     { label: '20k', hint: 'Small proxy box — nginx / HAProxy on 1–2 vCPU', patch: { capacityRps: 20000 } },
     { label: '50k', hint: 'Proxy box — 4 vCPU, tuned', patch: { capacityRps: 50000 } },

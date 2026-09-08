@@ -35,6 +35,7 @@ export const queueModel: ComponentModel = {
     retentionSec: 'How long unconsumed messages are kept before they age out.',
   },
 
+  presetLegend: 'broker throughput (msg/s)',
   presets: [
     { label: '10k', hint: 'Single broker / light SQS use', patch: { brokerThroughputRps: 10000 } },
     { label: '50k', hint: '3-broker Kafka cluster', patch: { brokerThroughputRps: 50000 } },

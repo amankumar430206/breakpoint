@@ -102,6 +102,9 @@ export interface ComponentModel {
   /** Standard param bundles (e.g. cloud instance shapes) shown as quick-pick
    *  chips above the sliders, alongside the fine-tuning ranges. */
   presets?: ParamPreset[];
+  /** One-line caption under the presets explaining what the chip labels mean
+   *  (e.g. "vCPU · RAM (GB)"). */
+  presetLegend?: string;
 
   /**
    * Fraction of inflow (0..1) that continues to downstream edges. 1 for

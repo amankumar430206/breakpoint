@@ -99,6 +99,7 @@ export const sqlDatabaseModel: ComponentModel = {
   },
   // Managed DB instance classes — the connection pool scales with the box, and a
   // memory-optimized class also serves reads a little faster from a bigger cache.
+  presetLegend: 'connection pool size',
   presets: [
     { label: '40', hint: 'db.t3.medium — 2 vCPU / 4 GB (~40 connections)', patch: { poolSize: 40 } },
     { label: '90', hint: 'db.m5.large — 2 vCPU / 8 GB (~90)', patch: { poolSize: 90 } },
