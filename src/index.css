@@ -1,0 +1,171 @@
+@import 'tailwindcss';
+
+/* ---- design tokens -------------------------------------------------------- */
+/* Dark is the default (bare :root). Light overrides under [data-theme="light"]. */
+:root {
+  --tm-bg: #0b0e14;
+  --tm-panel: #0e1118;
+  --tm-panel-2: #0b0e14;
+  --tm-node: #12151d;
+  --tm-node-ghost: #0f131b;
+  --tm-btn: #161a24;
+  --tm-btn-hover: #1c212d;
+  --tm-chip: #141822;
+  --tm-chip-active: #1c2942;
+  --tm-border: #1e2430;
+  --tm-border-2: #2a3140;
+  --tm-track: #1c2130;
+  --tm-text: #e6e9ef;
+  --tm-text-dim: #9aa4b2;
+  --tm-text-faint: #5b6472;
+  --tm-accent: #5b8def;
+  --tm-accent-soft: #9dc1ff;
+  --tm-shadow: rgba(0, 0, 0, 0.4);
+
+  --tm-crit-bg: #2b1416;
+  --tm-crit-border: #3a2226;
+  --tm-crit-fg: #f85149;
+  --tm-good-bg: #12251a;
+  --tm-good-fg: #3fb950;
+  --tm-warn-bg: #2b2410;
+  --tm-warn-fg: #d29922;
+  --tm-accent-bg: #16233a;
+  --tm-accent-bg-hover: #1b2b47;
+  --tm-accent-border: #27406b;
+
+  --tm-dot-grid: #232833;
+
+  color-scheme: dark;
+}
+
+/* The `.tm-light` class is also applied to the app root so that elements inside
+ * React Flow's transformed viewport reliably pick up the token change at runtime
+ * (a root-only attribute change can skip style recalc for that subtree in Chromium). */
+:root[data-theme='light'],
+.tm-light {
+  --tm-bg: #f3f5f8;
+  --tm-panel: #ffffff;
+  --tm-panel-2: #f6f7f9;
+  --tm-node: #ffffff;
+  --tm-node-ghost: #eceff3;
+  --tm-btn: #f1f3f6;
+  --tm-btn-hover: #e6eaf0;
+  --tm-chip: #eceff3;
+  --tm-chip-active: #dae6ff;
+  --tm-border: #e3e6ec;
+  --tm-border-2: #cbd1db;
+  --tm-track: #e7e9ee;
+  --tm-text: #1b2230;
+  --tm-text-dim: #5a6479;
+  --tm-text-faint: #8b94a5;
+  --tm-accent: #3b6fe0;
+  --tm-accent-soft: #2455c4;
+  --tm-shadow: rgba(20, 28, 45, 0.14);
+
+  --tm-crit-bg: #fdecec;
+  --tm-crit-border: #f2c9c4;
+  --tm-crit-fg: #c0392b;
+  --tm-good-bg: #e7f6ec;
+  --tm-good-fg: #1a7f37;
+  --tm-warn-bg: #fbf1de;
+  --tm-warn-fg: #96690a;
+  --tm-accent-bg: #e8f0ff;
+  --tm-accent-bg-hover: #d9e6ff;
+  --tm-accent-border: #b7ccf4;
+
+  --tm-dot-grid: #d5d9e0;
+
+  color-scheme: light;
+}
+
+/* ---- base -------------------------------------------------------------- */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--tm-bg);
+  color: var(--tm-text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabnum {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+}
+
+/* thin, themed scrollbars everywhere */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tm-border-2) transparent;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--tm-border-2);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tm-text-faint);
+  background-clip: content-box;
+}
+
+@keyframes tm-dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* ---- React Flow theming --------------------------------------------------- */
+/* Custom pan cursor: a double-stroked move glyph (dark outline + light core) so
+   it stays visible on both the light and dark canvas. */
+.react-flow__pane {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath stroke='%23111' stroke-width='3.6' d='M12 3v18M3 12h18M12 3l3 3M12 3l-3 3M12 21l3-3M12 21l-3-3M3 12l3 3M3 12l3-3M21 12l-3 3M21 12l-3-3'/%3E%3Cpath stroke='%23fff' stroke-width='1.4' d='M12 3v18M3 12h18M12 3l3 3M12 3l-3 3M12 21l3-3M12 21l-3-3M3 12l3 3M3 12l3-3M21 12l-3 3M21 12l-3-3'/%3E%3C/g%3E%3C/svg%3E")
+      12 12,
+    grab;
+}
+.react-flow__pane.dragging,
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__attribution {
+  background: transparent !important;
+  color: var(--tm-text-faint);
+}
+/* React Flow's own stylesheet is imported after this file, so plain
+   `.react-flow__controls-button` rules lose the cascade tie. Scope under
+   `.react-flow__controls` to win on specificity and keep the +/−/fit icons
+   legible in dark mode. */
+.react-flow__controls {
+  box-shadow: 0 1px 4px var(--tm-shadow);
+  border: 1px solid var(--tm-border-2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__controls .react-flow__controls-button {
+  background: var(--tm-btn);
+  border-bottom: 1px solid var(--tm-border);
+}
+.react-flow__controls .react-flow__controls-button:hover {
+  background: var(--tm-btn-hover);
+}
+.react-flow__controls .react-flow__controls-button svg {
+  fill: var(--tm-text-dim);
+}
+.react-flow__controls .react-flow__controls-button:hover svg {
+  fill: var(--tm-text);
+}
