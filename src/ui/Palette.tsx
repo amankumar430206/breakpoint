@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { allModels, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { ComponentIcon } from '@/flow/icons';
@@ -21,7 +22,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   resilience: 'Resilience',
 };
 
-export function Palette() {
+function PaletteInner() {
   const addNode = useDesignStore((s) => s.addNode);
   const models = allModels();
 
@@ -62,3 +63,5 @@ export function Palette() {
     </aside>
   );
 }
+
+export const Palette = memo(PaletteInner);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type uPlot from 'uplot';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -23,7 +23,7 @@ const readH = () => {
   }
 };
 
-export function MetricsDrawer() {
+function MetricsDrawerInner() {
   const [open, setOpen] = useState(true);
   const [full, setFull] = useState(false);
   const [h, setH] = useState(readH);
@@ -268,3 +268,5 @@ function Kpi({ label, value }: { label: string; value: string }) {
     </span>
   );
 }
+
+export const MetricsDrawer = memo(MetricsDrawerInner);

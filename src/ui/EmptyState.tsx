@@ -1,9 +1,10 @@
+import { memo, useMemo } from 'react';
 import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { listProjects, relativeTime } from '@/lib/projectStore';
 import { PRESETS } from '@/presets';
 
-export function EmptyState({
+function EmptyStateInner({
   onLoaded,
   onLoadPreset,
   onRandomize,
@@ -16,7 +17,9 @@ export function EmptyState({
 }) {
   const replaceGraph = useDesignStore((s) => s.replaceGraph);
   const addNode = useDesignStore((s) => s.addNode);
-  const recent = listProjects().slice(0, 4);
+  // Mounted only while the canvas is empty (no sim running), and never updates
+  // in place — read the browser library once.
+  const recent = useMemo(() => listProjects().slice(0, 4), []);
 
   const blank = () => {
     replaceGraph([], []);
@@ -90,3 +93,5 @@ export function EmptyState({
     </div>
   );
 }
+
+export const EmptyState = memo(EmptyStateInner);

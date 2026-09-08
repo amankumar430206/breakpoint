@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import {
   deriveConcurrency,
@@ -82,8 +82,7 @@ function replicasOf(type: ComponentType, p: Record<string, unknown>): { count: n
 function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const t = type as ComponentType;
   const d = data as ComponentNodeData;
-  const model = getModel(t);
-  const tier = tierOf(model.category);
+  const params = d.params;
   const m = useViewStore((s) => s.perNode[id]);
   const updateNodeParams = useDesignStore((s) => s.updateNodeParams);
   const flowDir = useDesignStore((s) => s.flowDir);
@@ -98,15 +97,32 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
     return sc.kind === 'wander' ? `${base} · varying` : base;
   });
 
-  const scale = resolveScaleParam(model, d.params);
-  const scaleVal = scale ? Math.round(Number(d.params[scale.key] ?? scale.min)) : 0;
-  const bump = (delta: number) => {
-    if (!scale) return;
-    const step = scale.step ?? 1;
-    updateNodeParams(id, {
-      [scale.key]: Math.min(scale.max, Math.max(scale.min, scaleVal + delta * step)),
-    });
-  };
+  // Everything below depends only on `type` + `params` — stable between sim
+  // ticks — so memoize it and skip the recompute on every metrics update.
+  const { model, tier } = useMemo(() => {
+    const mdl = getModel(t);
+    return { model: mdl, tier: tierOf(mdl.category) };
+  }, [t]);
+  const { scale, scaleVal } = useMemo(() => {
+    const sc = resolveScaleParam(model, params);
+    return { scale: sc, scaleVal: sc ? Math.round(Number(params[sc.key] ?? sc.min)) : 0 };
+  }, [model, params]);
+  const { count: replicas, label: replicaLabel } = useMemo(
+    () => replicasOf(t, params),
+    [t, params],
+  );
+  const spec = useMemo(() => specOf(t, params), [t, params]);
+
+  const bump = useCallback(
+    (delta: number) => {
+      if (!scale) return;
+      const step = scale.step ?? 1;
+      updateNodeParams(id, {
+        [scale.key]: Math.min(scale.max, Math.max(scale.min, scaleVal + delta * step)),
+      });
+    },
+    [scale, scaleVal, id, updateNodeParams],
+  );
 
   const rho = m?.rho ?? 0;
   const level = healthForRho(rho, m?.overloaded ?? false);
@@ -115,12 +131,6 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const hasOut = model.routing !== 'sink';
   const isExternal = tier === 'external';
   const accent = isExternal ? EXTERNAL_ACCENT : health;
-
-  const { count: replicas, label: replicaLabel } = replicasOf(t, d.params);
-
-  // Compute boxes (apiServer / worker) show a one-line spec on the card and the
-  // full sizing derivation on hover.
-  const spec = specOf(t, d.params);
   // 1 → plain card · 2 → one instance peeking to the right · 3 → three cards
   // fanned side-by-side · 4+ → three + a "+N" strip, all inside a dashed frame.
   const grouped = replicas >= 3;
@@ -161,7 +171,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
             height: `calc(100% - ${pad * 2}px)`,
             background: 'var(--tm-node-ghost)',
             borderColor: 'var(--tm-border)',
-            borderLeft: `3px solid ${accent}`,
+            borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
           }}
         >
           <span className="tabnum absolute right-1 top-1 text-[9px] font-semibold text-[var(--tm-text-faint)]">
@@ -182,7 +192,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
               height: `calc(100% - ${pad * 2}px)`,
               background: 'var(--tm-node-ghost)',
               borderColor: 'var(--tm-border)',
-              borderLeft: `3px solid ${accent}`,
+              borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
               opacity: 0.55 + i * 0.2,
             }}
           />
@@ -196,7 +206,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
           background: isExternal ? 'var(--tm-panel-2)' : 'var(--tm-node)',
           borderColor: selected ? 'var(--tm-accent)' : isExternal ? EXTERNAL_ACCENT : 'var(--tm-border)',
           borderStyle: isExternal ? 'dashed' : 'solid',
-          borderLeft: `3px solid ${accent}`,
+          borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
         }}
       >
         {hasIn && <Handle type="target" position={targetPos} style={{ background: 'var(--tm-border-2)' }} />}
@@ -295,7 +305,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   );
 }
 
-function StepBtn({
+const StepBtn = memo(function StepBtn({
   onClick,
   disabled,
   children,
@@ -316,11 +326,11 @@ function StepBtn({
       {children}
     </button>
   );
-}
+});
 
 const MEMBER_CAP = 8;
 
-function MemberList({ members }: { members: MemberMetrics[] }) {
+const MemberList = memo(function MemberList({ members }: { members: MemberMetrics[] }) {
   const shown = members.slice(0, MEMBER_CAP);
   const extra = members.length - shown.length;
   return (
@@ -359,10 +369,10 @@ function MemberList({ members }: { members: MemberMetrics[] }) {
       {extra > 0 && <div className="text-[9px] text-[var(--tm-text-faint)]">+{extra} more</div>}
     </div>
   );
-}
+});
 
 /** The embedded datastore, shown as a sub-component of the box it runs on. */
-function ColocatedDb({
+const ColocatedDb = memo(function ColocatedDb({
   params,
   serverRho,
 }: {
@@ -402,15 +412,15 @@ function ColocatedDb({
       <div className="mt-0.5 text-[9px] text-[var(--tm-text-faint)]">{buf} GB buffer pool</div>
     </div>
   );
-}
+});
 
-function Stat({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
+const Stat = memo(function Stat({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-1">
       <span className="text-[var(--tm-text-faint)]">{label}</span>
       <span style={{ color: alert ? HEALTH_COLOR.crit : undefined }}>{value}</span>
     </div>
   );
-}
+});
 
 export const ComponentNode = memo(ComponentNodeInner);

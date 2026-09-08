@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import type { ComponentType } from '@/engine';
 
 /** Minimal line icons, one per component type. 20×20, currentColor. */
-export function ComponentIcon({ type, size = 18 }: { type: ComponentType; size?: number }) {
+const ComponentIconInner = ({ type, size = 18 }: { type: ComponentType; size?: number }) => {
   const p = {
     width: size,
     height: size,
@@ -107,3 +108,5 @@ export function ComponentIcon({ type, size = 18 }: { type: ComponentType; size?:
       );
   }
 }
+
+export const ComponentIcon = memo(ComponentIconInner);

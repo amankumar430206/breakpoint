@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Capacity } from '@/engine';
 import { useViewStore } from '@/store/viewStore';
 import { HelpTip } from './HelpTip';
@@ -13,7 +14,7 @@ const GRADE_COLOR: Record<Capacity['grade'], string> = {
 
 /** Compact headline pill: the current design's grade + how much room it has to
  *  grow before the busiest component saturates. Lives in the metrics drawer. */
-export function SystemGrade() {
+function SystemGradeInner() {
   const cap = useViewStore((s) => s.analysis?.capacity);
   if (!cap || cap.grade === '—') return null;
 
@@ -38,3 +39,5 @@ export function SystemGrade() {
     </HelpTip>
   );
 }
+
+export const SystemGrade = memo(SystemGradeInner);

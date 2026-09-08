@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useDesignStore } from '@/store/designStore';
 import { useViewStore } from '@/store/viewStore';
 import { HEALTH_COLOR } from '@/lib/format';
 
 /** Floating audit card: what's blocking the system and the cheapest fixes.
  *  Fixes apply straight to the design store — one click and the graph re-solves. */
-export function BottleneckPanel() {
+function BottleneckPanelInner() {
   const analysis = useViewStore((s) => s.analysis);
   const updateNodeParams = useDesignStore((s) => s.updateNodeParams);
   const [collapsed, setCollapsed] = useState(false);
@@ -84,3 +84,5 @@ export function BottleneckPanel() {
     </div>
   );
 }
+
+export const BottleneckPanel = memo(BottleneckPanelInner);
