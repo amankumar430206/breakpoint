@@ -21,6 +21,9 @@ export type {
   ComponentCategory,
   ComponentTier,
   ScaleParam,
+  ParamPreset,
 } from './components/types';
 export { tierOf, resolveScaleParam } from './components/types';
+export { deriveConcurrency, effectiveServiceMs } from './components/apiServer';
+export type { ServerSizing } from './components/apiServer';
 export * as queueing from './queueing';

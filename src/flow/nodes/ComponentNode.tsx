@@ -1,6 +1,13 @@
 import { memo, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { getModel, resolveScaleParam, tierOf, type ComponentType, type MemberMetrics } from '@/engine';
+import {
+  deriveConcurrency,
+  getModel,
+  resolveScaleParam,
+  tierOf,
+  type ComponentType,
+  type MemberMetrics,
+} from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
@@ -17,6 +24,27 @@ export interface ComponentNodeData {
 const NODE_W = 184;
 const EXTERNAL_ACCENT = '#a371f7';
 const FRAME_PAD = 6; // room for the grouped dashed frame
+
+/** Compact box spec for compute nodes: a one-line summary + a full derivation
+ *  for the hover tooltip. */
+function specOf(
+  type: ComponentType,
+  p: Record<string, unknown>,
+): { line: string; title: string } | null {
+  if (type !== 'apiServer' && type !== 'worker') return null;
+  const s = deriveConcurrency(p);
+  const vcpus = Number(p.vcpus ?? 2);
+  const ramGB = Number(p.ramGB ?? 4);
+  const storage = p.storageGB != null ? Number(p.storageGB) : null;
+  const mem = Number.isFinite(s.memSlots) ? String(s.memSlots) : '∞';
+  const line = `${vcpus} vCPU · ${ramGB} GB · ${s.concurrency} slots`;
+  const title =
+    `${vcpus} vCPU × ${Number(p.parallelPerVcpu ?? 8)} = ${s.cpuSlots} CPU slots\n` +
+    `${ramGB} GB ÷ ${Number(p.memPerReqMB ?? 40)} MB = ${mem} RAM slots\n` +
+    `→ ${s.concurrency} concurrent / instance (${s.bound}-bound)` +
+    (storage != null ? `\nstorage ${storage} GB` : '');
+  return { line, title };
+}
 
 /** How many parallel instances this node represents, plus a human label. */
 function replicasOf(type: ComponentType, p: Record<string, unknown>): { count: number; label?: string } {
@@ -88,6 +116,10 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const accent = isExternal ? EXTERNAL_ACCENT : health;
 
   const { count: replicas, label: replicaLabel } = replicasOf(t, d.params);
+
+  // Compute boxes (apiServer / worker) show a one-line spec on the card and the
+  // full sizing derivation on hover.
+  const spec = specOf(t, d.params);
   // 1 → plain card · 2 → one instance peeking to the right · 3 → three cards
   // fanned side-by-side · 4+ → three + a "+N" strip, all inside a dashed frame.
   const grouped = replicas >= 3;
@@ -209,6 +241,14 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
         )}
         {clientLoad && (
           <div className="px-2.5 pb-1 text-[10px] text-[var(--tm-text-faint)]">{clientLoad}</div>
+        )}
+        {spec && (
+          <div
+            className="cursor-help truncate px-2.5 pb-1 text-[10px] text-[var(--tm-text-faint)]"
+            title={spec.title}
+          >
+            {spec.line}
+          </div>
         )}
 
         <div className="mx-2.5 h-1 overflow-hidden rounded bg-[var(--tm-border)]">
