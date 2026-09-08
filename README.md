@@ -134,34 +134,28 @@ src/
   flow/              React Flow canvas, custom nodes/edges, context menus
   ui/                TopBar, ScenarioBar, Palette, Inspector, MetricsDrawer …
   presets/           preset designs as JSON
-docs/model.md        the queueing math, with citations
+docs/                 architecture, component reference, the queueing math
 ```
 
+### Docs
+
+| file | what |
+| --- | --- |
+| [`docs/architecture.md`](docs/architecture.md) | engine layers → worker → stores → canvas; the analytical ⇄ DES contract |
+| [`docs/components.md`](docs/components.md) | every component: params, routing, how it's modelled |
+| [`docs/model.md`](docs/model.md) | the queueing formulas, with citations |
+| [`docs/concepts.md`](docs/concepts.md) | system-design primer the design-review advisor links into |
+| [`docs/extending.md`](docs/extending.md) | adding a component = one file + one registry line |
+| [`docs/roadmap.md`](docs/roadmap.md) | what's done, what's planned |
+
 **Adding a component** = one file in `src/engine/components/`, one registry entry,
-one docs paragraph. The node UI and the schema-driven inspector form are generic.
+one docs row — see [`docs/extending.md`](docs/extending.md).
 
 ## Roadmap
 
-Done:
-
-- [x] Validated queueing engine (M/M/1, M/M/c, M/M/c/K, Erlang B/C, Jackson flow)
-- [x] Discrete-event simulator + analytical/DES convergence tests
-- [x] React Flow canvas, generic node/inspector, context menus, auto-layout
-- [x] Closed-loop (users) and open-loop (RPS) load models
-- [x] DB replication topologies + hot-shard detection
-- [x] Bottleneck detector with one-click fixes, system grade
-- [x] Presets, random generator, share URL, JSON / PNG / SVG / report export
-
-Planned:
-
-- [ ] Failure injection / chaos (kill node, add latency, partition edge, AZ outage)
-- [ ] Multi-region / AZ containers, inter-zone latency, replication lag, quorum (R/W/N)
-- [ ] Guided challenges with live pass/fail progression
-- [ ] Read-only embeddable widget (`embed.html`)
-- [ ] M/G/1 service-time distributions (Pollaczek–Khinchine)
-- [ ] Compare mode (two designs, one scenario, metric diff)
-- [ ] Cost model + SLO / error-budget panel
-- [ ] Import from telemetry (Prometheus / OpenTelemetry service graph / CSV)
+See [`docs/roadmap.md`](docs/roadmap.md). Next up: failure / chaos injection
+(kill a node, add latency, degrade, partition an edge), then multi-region / AZ
+zones with quorum.
 
 ## Contributing
 
