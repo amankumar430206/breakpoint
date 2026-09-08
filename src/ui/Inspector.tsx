@@ -425,6 +425,7 @@ function EdgeInspector({
   const em = useViewStore((s) => s.perEdge[edgeId]);
   const flow = em?.flow ?? 0;
   const retry = em?.retryFactor ?? 1;
+  const timeoutRate = em?.timeoutRate ?? 0;
   const fields: FieldDesc[] = [
     { key: 'weight', kind: 'number', min: 0, default: 1 },
     { key: 'retries', kind: 'number', min: 0, max: 8, int: true, default: 0 },
@@ -446,6 +447,13 @@ function EdgeInspector({
       <div className="tabnum rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
         <Metric label="flow" value={fmtRps(flow)} />
         <Metric label="retry factor" value={`×${retry.toFixed(2)}`} alert={retry > 1.05} />
+        {timeoutRate > 0.0005 && (
+          <Metric
+            label="timed out"
+            value={`${(timeoutRate * 100).toFixed(1)}%`}
+            alert={timeoutRate > 0.02}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-2.5">
         {fields.map((f) => (

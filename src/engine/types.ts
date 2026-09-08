@@ -180,6 +180,8 @@ export interface EdgeMetrics {
   retryFactor: number;
   /** Network latency contribution, seconds. */
   netLatencySec: number;
+  /** Fraction of attempts on this edge that exceed `timeoutSec` (0 when no timeout). */
+  timeoutRate: number;
 }
 
 export interface SystemMetrics {

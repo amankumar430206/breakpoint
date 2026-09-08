@@ -27,8 +27,15 @@ function FlowEdgeInner({
   const running = useSimStore((s) => s.running);
   const flow = metrics?.flow ?? 0;
   const retry = metrics?.retryFactor ?? 1;
+  const timeoutRate = metrics?.timeoutRate ?? 0;
   const width = flow <= 0 ? 1 : Math.min(6, 1 + Math.log10(1 + flow) * 1.1);
-  const stroke = selected ? 'var(--tm-accent)' : retry > 1.05 ? 'var(--tm-warn-fg)' : 'var(--tm-border-2)';
+  const stroke = selected
+    ? 'var(--tm-accent)'
+    : timeoutRate > 0.02
+      ? 'var(--tm-crit-fg)'
+      : retry > 1.05
+        ? 'var(--tm-warn-fg)'
+        : 'var(--tm-border-2)';
 
   return (
     <>
@@ -42,7 +49,7 @@ function FlowEdgeInner({
           animation: running && flow > 0 ? 'tm-dash 1s linear infinite' : undefined,
         }}
       />
-      {(flow > 0 || retry > 1.05) && (
+      {(flow > 0 || retry > 1.05 || timeoutRate > 0.02) && (
         <EdgeLabelRenderer>
           <div
             className="tabnum pointer-events-none absolute rounded bg-[var(--tm-node)]/90 px-1 text-[10px] text-[var(--tm-text-dim)]"
@@ -50,6 +57,9 @@ function FlowEdgeInner({
           >
             {fmtRps(flow)}
             {retry > 1.05 && <span className="ml-1 text-[var(--tm-warn-fg)]">×{retry.toFixed(2)}</span>}
+            {timeoutRate > 0.02 && (
+              <span className="ml-1 text-[var(--tm-crit-fg)]">⏱{Math.round(timeoutRate * 100)}%</span>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

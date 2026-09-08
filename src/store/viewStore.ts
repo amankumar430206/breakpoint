@@ -113,7 +113,8 @@ function sameNodeMetrics(a: NodeMetrics, b: NodeMetrics): boolean {
 function sameEdgeMetrics(a: EdgeMetrics, b: EdgeMetrics): boolean {
   return (
     Object.is(q(a.flow, 1e-2), q(b.flow, 1e-2)) &&
-    Object.is(q(a.retryFactor, 1e-3), q(b.retryFactor, 1e-3))
+    Object.is(q(a.retryFactor, 1e-3), q(b.retryFactor, 1e-3)) &&
+    Object.is(q(a.timeoutRate, 1e-4), q(b.timeoutRate, 1e-4))
   );
 }
 
@@ -188,7 +189,12 @@ export const useViewStore = create<ViewState>((set, get) => ({
     const perEdge: Record<string, EdgeMetrics> = {};
     let edgeChanged = false;
     for (const [id, e] of Object.entries(snap.perEdge)) {
-      const fresh: EdgeMetrics = { flow: e.flow, retryFactor: e.retryFactor, netLatencySec: 0 };
+      const fresh: EdgeMetrics = {
+        flow: e.flow,
+        retryFactor: e.retryFactor,
+        netLatencySec: 0,
+        timeoutRate: e.timeoutRate,
+      };
       const prev = prevEdge[id];
       if (prev && sameEdgeMetrics(prev, fresh)) perEdge[id] = prev;
       else {

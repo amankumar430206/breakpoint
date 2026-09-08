@@ -62,8 +62,9 @@ export interface FlowInput {
   outflowFraction: (nodeId: string) => number;
   /** Routing mode of a node's model. */
   routingMode: (nodeId: string) => 'passthrough' | 'replicate' | 'branch' | 'sink';
-  /** Per-attempt failure probability of a node (drop + error), from last iteration. */
-  serviceFailure: (nodeId: string) => number;
+  /** Per-attempt failure probability of a *call over this edge* — the target
+   *  node's service failure combined with the edge's timeout probability. */
+  attemptFailure: (edge: EdgeSpec) => number;
 }
 
 export interface FlowOutput {
@@ -78,7 +79,7 @@ export interface FlowOutput {
  * amplified) flow on every edge. The caller iterates this to a fixed point.
  */
 export function computeFlow(input: FlowInput): FlowOutput {
-  const { g, order, entryRate, outflowFraction, routingMode, serviceFailure } = input;
+  const { g, order, entryRate, outflowFraction, routingMode, attemptFailure } = input;
   const nodeInflow = new Map<string, number>(g.nodes.map((n) => [n.id, 0]));
   const edgeFlow = new Map<string, number>();
   const edgeRetryFactor = new Map<string, number>();
@@ -111,7 +112,7 @@ export function computeFlow(input: FlowInput): FlowOutput {
           ? forwardable
           : forwardable * ((e.params.weight ?? 1) / totalWeight);
       const calls = share * (e.params.callsPerRequest ?? 1);
-      const amp = expectedAttempts(serviceFailure(e.target), e.params.retries ?? 0);
+      const amp = expectedAttempts(attemptFailure(e), e.params.retries ?? 0);
       const flow = calls * amp;
       edgeFlow.set(e.id, flow);
       edgeRetryFactor.set(e.id, amp);

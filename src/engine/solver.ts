@@ -19,6 +19,19 @@ function serviceFailure(m: NodeMetrics): number {
   return clamp01(m.dropRate + (1 - m.dropRate) * m.errorRate);
 }
 
+/** P(a request's sojourn at `m` exceeds `timeoutSec`). Sojourn ≈ Exp(mean) —
+ *  exact for M/M/1, a monotone approximation elsewhere. 0 when no timeout set. */
+function timeoutProb(m: NodeMetrics, timeoutSec: number | undefined): number {
+  if (!timeoutSec || timeoutSec <= 0) return 0;
+  const mean = m.latency.mean;
+  if (!Number.isFinite(mean)) return m.overloaded ? 1 : 0;
+  if (mean <= 0) return 0;
+  return Math.exp(-timeoutSec / mean);
+}
+
+/** Compose two independent failure probabilities. */
+const combineFail = (a: number, b: number): number => clamp01(1 - (1 - a) * (1 - b));
+
 function validateParams(
   type: string,
   raw: Record<string, unknown>,
@@ -44,7 +57,7 @@ function downstreamFailure(g: Graph, nodeId: string, metrics: Map<string, NodeMe
   for (const e of out) {
     const vm = metrics.get(e.target);
     if (!vm) continue;
-    const single = serviceFailure(vm);
+    const single = combineFail(serviceFailure(vm), timeoutProb(vm, e.params.timeoutSec));
     const retries = Math.max(0, Math.floor(e.params.retries ?? 0));
     const retriedFail = Math.pow(single, retries + 1);
     survive *= 1 - retriedFail;
@@ -157,7 +170,8 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
     entryRate,
     outflowFraction: (id) => getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!),
     routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
-    serviceFailure: (id) => failure.get(id) ?? 0,
+    attemptFailure: (e) =>
+      combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),
   });
 
   let iterations = 0;
@@ -190,7 +204,8 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
       entryRate,
       outflowFraction: (id) => getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!),
       routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
-      serviceFailure: (id) => failure.get(id) ?? 0,
+      attemptFailure: (e) =>
+      combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),
     });
 
     let maxInflowDelta = 0;
@@ -232,6 +247,7 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
       flow: flow.edgeFlow.get(e.id) ?? 0,
       retryFactor: flow.edgeRetryFactor.get(e.id) ?? 1,
       netLatencySec: 0,
+      timeoutRate: timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec),
     };
   }
 

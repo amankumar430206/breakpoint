@@ -24,7 +24,7 @@ export interface SimNodeMetrics {
 export interface SimSnapshot {
   simTime: number;
   perNode: Record<string, SimNodeMetrics>;
-  perEdge: Record<string, { flow: number; retryFactor: number }>;
+  perEdge: Record<string, { flow: number; retryFactor: number; timeoutRate: number }>;
   system: {
     offeredRps: number;
     servedRps: number;
@@ -47,7 +47,15 @@ interface SimNode {
   id: string;
   isClient: boolean;
   spec: SimSpec;
-  out: { edgeId: string; target: string; weight: number; retries: number; backoff: number; calls: number }[];
+  out: {
+    edgeId: string;
+    target: string;
+    weight: number;
+    retries: number;
+    backoff: number;
+    calls: number;
+    timeoutSec: number;
+  }[];
   routing: 'passthrough' | 'replicate' | 'branch' | 'sink';
   busy: number;
   queue: Req[];
@@ -71,6 +79,7 @@ export class Simulator {
   private clients: string[] = [];
   private edgeAttempts = new Map<string, number>();
   private edgeFirst = new Map<string, number>();
+  private edgeTimeouts = new Map<string, number>();
   private now = 0;
   private windowStart = 0;
   private reqSeq = 0;
@@ -115,6 +124,7 @@ export class Simulator {
         retries: Math.max(0, Math.floor(e.params.retries ?? 0)),
         backoff: Math.max(0, e.params.backoffSec ?? 0),
         calls: Math.max(0, e.params.callsPerRequest ?? 1),
+        timeoutSec: Math.max(0, e.params.timeoutSec ?? 0),
       }));
       this.nodes.set(n.id, {
         id: n.id,
@@ -137,6 +147,7 @@ export class Simulator {
       for (const e of this.g.outEdges.get(n.id) ?? []) {
         this.edgeAttempts.set(e.id, 0);
         this.edgeFirst.set(e.id, 0);
+        this.edgeTimeouts.set(e.id, 0);
       }
     }
   }
@@ -343,18 +354,35 @@ export class Simulator {
     const targetNode = this.nodes.get(tgt.target);
     if (!targetNode) return resolve(false, this.now);
 
+    // Whichever fires first — the downstream subtree resolving, or the per-attempt
+    // timeout — settles this attempt; the other is ignored. An abandoned request
+    // still occupies the downstream server (wasted work), matching reality.
+    let settled = false;
+    const done = (failed: boolean, at: number): void => {
+      if (settled) return;
+      settled = true;
+      if (failed && attempt <= tgt.retries) {
+        this.at(tgt.backoff, () => this.sendAlong(tgt, bornAt, attempt + 1, resolve));
+      } else {
+        resolve(failed, at);
+      }
+    };
+
     const sub: Req = {
       id: ++this.reqSeq,
       bornAt,
       enteredNodeAt: this.now,
-      onResolve: (failed, at) => {
-        if (failed && attempt <= tgt.retries) {
-          this.at(tgt.backoff, () => this.sendAlong(tgt, bornAt, attempt + 1, resolve));
-        } else {
-          resolve(failed, at);
-        }
-      },
+      onResolve: (failed, at) => done(failed, at),
     };
+
+    if (tgt.timeoutSec > 0) {
+      this.at(tgt.timeoutSec, () => {
+        if (settled) return;
+        this.edgeTimeouts.set(tgt.edgeId, (this.edgeTimeouts.get(tgt.edgeId) ?? 0) + 1);
+        done(true, this.now);
+      });
+    }
+
     this.arrive(targetNode, sub);
   }
 
@@ -408,15 +436,18 @@ export class Simulator {
       n.hist.reset();
     }
 
-    const perEdge: Record<string, { flow: number; retryFactor: number }> = {};
+    const perEdge: Record<string, { flow: number; retryFactor: number; timeoutRate: number }> = {};
     for (const [id, attempts] of this.edgeAttempts) {
       const first = this.edgeFirst.get(id) ?? 0;
+      const timeouts = this.edgeTimeouts.get(id) ?? 0;
       perEdge[id] = {
         flow: attempts / window,
         retryFactor: first > 0 ? attempts / first : 1,
+        timeoutRate: attempts > 0 ? timeouts / attempts : 0,
       };
       this.edgeAttempts.set(id, 0);
       this.edgeFirst.set(id, 0);
+      this.edgeTimeouts.set(id, 0);
     }
 
     const offeredRps = this.sysOffered / window;

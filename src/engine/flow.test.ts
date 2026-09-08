@@ -19,7 +19,7 @@ function runFlow(nodes: NodeSpec[], edges: EdgeSpec[], entryRate: number, fail: 
     entryRate,
     outflowFraction: (id) => getModel(g.byId.get(id)!.type).outflowFraction(g.byId.get(id)!.params),
     routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
-    serviceFailure: (id) => fail[id] ?? 0,
+    attemptFailure: (e) => fail[e.target] ?? 0,
   });
 }
 

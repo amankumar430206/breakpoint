@@ -192,4 +192,35 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(sim.perEdge.e2.retryFactor).toBeGreaterThan(1.3);
     expect(sim.perNode.db.dropRate).toBeGreaterThan(0.3);
   });
+
+  it('per-attempt timeout: DES timeout rate and success rate track the analytical tail', () => {
+    // DB sojourn ≈ Exp(50 ms) at negligible utilization; a 50 ms timeout clips
+    // the tail at P(sojourn > 50 ms) = e^-1 ≈ 0.368. No retries → a timeout is a
+    // failed request, so end-to-end success ≈ 1 − 0.368.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', {
+          serviceTimeMs: 0.5,
+          concurrency: 128,
+          replicas: 1,
+          intrinsicErrorRate: 0,
+        }),
+        node('db', 'sqlDatabase', {
+          queryTimeMs: 50,
+          poolSize: 64,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'db', { timeoutSec: 0.05 })],
+      100,
+    );
+    const sim = measure(d, 120, 600);
+    const a = solve(d);
+
+    expect(a.perEdge.e2.timeoutRate).toBeGreaterThan(0.3);
+    expect(sim.perEdge.e2.timeoutRate).toBeGreaterThan(0.25);
+    expect(rel(sim.perEdge.e2.timeoutRate, a.perEdge.e2.timeoutRate)).toBeLessThan(0.2);
+    expect(rel(sim.system.successRate, a.system.successRate)).toBeLessThan(0.15);
+  });
 });
