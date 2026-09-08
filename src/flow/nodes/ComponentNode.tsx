@@ -272,6 +272,10 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
 
         {m?.members && m.members.length > 1 && <MemberList members={m.members} />}
 
+        {t === 'apiServer' && Boolean(d.params.colocatedDb) && (
+          <ColocatedDb params={d.params} serverRho={rho} />
+        )}
+
         {scale && (
           <div className="flex items-center justify-between border-t border-[var(--tm-border)] px-2.5 py-1 text-[10px] text-[var(--tm-text-dim)]">
             <span>{scale.label}</span>
@@ -353,6 +357,49 @@ function MemberList({ members }: { members: MemberMetrics[] }) {
         );
       })}
       {extra > 0 && <div className="text-[9px] text-[var(--tm-text-faint)]">+{extra} more</div>}
+    </div>
+  );
+}
+
+/** The embedded datastore, shown as a sub-component of the box it runs on. */
+function ColocatedDb({
+  params,
+  serverRho,
+}: {
+  params: Record<string, unknown>;
+  serverRho: number;
+}) {
+  const qpr = Math.max(0, Number(params.queriesPerRequest ?? 3));
+  const dqms = Math.max(0, Number(params.dbQueryMs ?? 6));
+  const buf = Math.max(0, Number(params.dbBufferGB ?? 1));
+  const baseMs = Math.max(0.001, Number(params.serviceTimeMs ?? 40));
+  const dbMs = qpr * dqms;
+  const share = dbMs / (dbMs + baseMs); // fraction of each request's CPU time
+  // The DB's slice of the box's utilization — what you'd get back by moving it off.
+  const dbRho = serverRho * share;
+  return (
+    <div className="border-t border-[var(--tm-border)] px-2.5 py-1.5">
+      <div className="flex items-center gap-1.5 text-[10px]">
+        <span className="text-[var(--tm-text-faint)]">
+          <ComponentIcon type="sqlDatabase" size={11} />
+        </span>
+        <span className="text-[var(--tm-text-dim)]">database · on this box</span>
+        <span className="tabnum ml-auto text-[var(--tm-text-faint)]">
+          {qpr}× · {dqms} ms
+        </span>
+      </div>
+      <div className="mt-1 flex items-center gap-1.5">
+        <span className="h-1 flex-1 overflow-hidden rounded bg-[var(--tm-border)]">
+          <span
+            className="block h-full rounded"
+            style={{ width: `${Math.min(100, share * 100)}%`, background: 'var(--tm-accent)' }}
+          />
+        </span>
+        <span className="tabnum w-24 shrink-0 text-right text-[10px] text-[var(--tm-text-faint)]">
+          {Math.round(share * 100)}% of svc · ρ {dbRho.toFixed(2)}
+        </span>
+      </div>
+      <div className="mt-0.5 text-[9px] text-[var(--tm-text-faint)]">{buf} GB buffer pool</div>
     </div>
   );
 }
