@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "name": "Single box (app + DB)",
+  "description": "The classic small deployment: one server running the application and its database on the same machine — no separate DB node. App and DB share the box's CPU and RAM.",
+  "notes": "Raise the user count until it turns red, then apply the 'move the database onto its own host' fix and watch capacity jump — that split is the whole point of separating tiers. Or bump dbBufferGB to see the box flip from CPU-bound to RAM-bound.",
+  "nodes": [
+    { "id": "client", "type": "client", "position": { "x": 300, "y": 0 }, "label": "Users", "params": {} },
+    {
+      "id": "box",
+      "type": "apiServer",
+      "position": { "x": 300, "y": 160 },
+      "label": "app-server",
+      "params": {
+        "vcpus": 4,
+        "ramGB": 8,
+        "serviceTimeMs": 12,
+        "replicas": 1,
+        "intrinsicErrorRate": 0.001,
+        "colocatedDb": true,
+        "queriesPerRequest": 4,
+        "dbQueryMs": 4,
+        "dbBufferGB": 3
+      }
+    }
+  ],
+  "edges": [{ "id": "e_client_box", "source": "client", "target": "box", "params": {} }],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 500, "users": 500, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 8 },
+    "seed": 1,
+    "speed": 4
+  }
+}

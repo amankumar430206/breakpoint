@@ -33,7 +33,11 @@ export function deriveConcurrency(params: Record<string, unknown>): ServerSizing
 
   const vcpus = Math.max(0.25, num(params, 'vcpus', 2));
   const perVcpu = Math.max(1, num(params, 'parallelPerVcpu', 8));
-  const ramGB = Math.max(0.125, num(params, 'ramGB', 4));
+  // A co-located database's buffer pool is carved out of the box's RAM, so it
+  // leaves fewer slots for in-flight requests (this is how a single box tips
+  // from CPU-bound to RAM-bound once you put the DB on it).
+  const dbBufferGB = bool(params, 'colocatedDb', false) ? num(params, 'dbBufferGB', 1) : 0;
+  const ramGB = Math.max(0.125, num(params, 'ramGB', 4) - dbBufferGB);
   const memPerReqMB = Math.max(1, num(params, 'memPerReqMB', 40));
 
   const cpuSlots = Math.max(1, Math.round(vcpus * perVcpu));
@@ -44,6 +48,13 @@ export function deriveConcurrency(params: Record<string, unknown>): ServerSizing
     memSlots,
     bound: memSlots < cpuSlots ? 'ram' : 'cpu',
   };
+}
+
+/** Mean CPU time per request, including any co-located DB query time. */
+export function effectiveServiceMs(params: Record<string, unknown>): number {
+  const base = num(params, 'serviceTimeMs', 40);
+  if (!bool(params, 'colocatedDb', false)) return base;
+  return base + num(params, 'queriesPerRequest', 3) * num(params, 'dbQueryMs', 8);
 }
 
 export const apiServerModel: ComponentModel = {
@@ -66,6 +77,10 @@ export const apiServerModel: ComponentModel = {
     autoscale: false,
     targetUtil: 0.7,
     maxReplicas: 12,
+    colocatedDb: false,
+    dbQueryMs: 6,
+    queriesPerRequest: 3,
+    dbBufferGB: 1,
   },
   paramSchema: z.object({
     vcpus: z.number().positive().max(128).default(2),
@@ -82,6 +97,10 @@ export const apiServerModel: ComponentModel = {
     autoscale: z.boolean().default(false),
     targetUtil: z.number().gt(0).lt(1).default(0.7),
     maxReplicas: z.number().int().positive().default(12),
+    colocatedDb: z.boolean().default(false),
+    dbQueryMs: z.number().positive().max(2000).default(6),
+    queriesPerRequest: z.number().nonnegative().max(50).default(3),
+    dbBufferGB: z.number().nonnegative().max(512).default(1),
   }),
   paramDocs: {
     vcpus: 'Virtual CPUs per instance (e.g. t3.small ≈ 2, c6i.xlarge ≈ 4).',
@@ -97,8 +116,17 @@ export const apiServerModel: ComponentModel = {
     autoscale: 'Add replicas automatically to hold utilization at the target.',
     targetUtil: 'Utilization the autoscaler aims for.',
     maxReplicas: 'Upper bound on autoscaled replicas.',
+    colocatedDb: 'Run the database on the same box (no separate DB node). Its query time is added to each request and its buffer pool eats into RAM.',
+    dbQueryMs: 'Mean time for one local DB query (shares this box’s CPU).',
+    queriesPerRequest: 'DB queries each request makes against the local database.',
+    dbBufferGB: 'RAM reserved for the local DB buffer pool — carved out of this box’s memory.',
   },
   scaleParam: { key: 'replicas', label: 'replicas', min: 1, max: 32 },
+
+  fieldVisible: (key, params) =>
+    key === 'dbQueryMs' || key === 'queriesPerRequest' || key === 'dbBufferGB'
+      ? bool(params, 'colocatedDb', false)
+      : true,
 
   outflowFraction: () => 1,
 
@@ -107,7 +135,7 @@ export const apiServerModel: ComponentModel = {
     const c = per * Math.max(1, Math.round(num(params, 'replicas', 1)));
     return {
       servers: c,
-      serviceRate: 1000 / num(params, 'serviceTimeMs', 40),
+      serviceRate: 1000 / effectiveServiceMs(params),
       queueCap: bool(params, 'loadShedding', true)
         ? Math.max(0, Math.round(num(params, 'queueLimit', 200)))
         : Infinity,
@@ -119,7 +147,9 @@ export const apiServerModel: ComponentModel = {
 
   solve: (ctx: SolveNodeCtx) => {
     const { params, inflow, downstreamErrorRate } = ctx;
-    const serviceMs = num(params, 'serviceTimeMs', 40);
+    const baseServiceMs = num(params, 'serviceTimeMs', 40);
+    const serviceMs = effectiveServiceMs(params);
+    const colocated = bool(params, 'colocatedDb', false);
     const sizing = deriveConcurrency(params);
     const concurrency = sizing.concurrency;
     const mu = 1000 / serviceMs;
@@ -150,9 +180,19 @@ export const apiServerModel: ComponentModel = {
     });
 
     const explain = [
+      ...(colocated
+        ? [
+            {
+              metric: 'latency.mean',
+              text: `Database runs on this box: +${num(params, 'queriesPerRequest', 3)} queries × ${num(params, 'dbQueryMs', 6)} ms = +${(serviceMs - baseServiceMs).toFixed(0)} ms of CPU per request, and ${num(params, 'dbBufferGB', 1)} GB of RAM held for its buffer pool. App and DB share one resource pool.`,
+              formula: 'serviceMs = handler + queriesPerRequest · dbQueryMs',
+              dominantTerm: 'shared box',
+            },
+          ]
+        : []),
       {
         metric: 'servers',
-        text: `${num(params, 'vcpus', 2)} vCPU × ${num(params, 'parallelPerVcpu', 8)} = ${sizing.cpuSlots} CPU slots; ${num(params, 'ramGB', 4)} GB ÷ ${num(params, 'memPerReqMB', 40)} MB = ${sizing.memSlots} RAM slots ⇒ ${concurrency} concurrent/replica (${sizing.bound}-bound).`,
+        text: `${num(params, 'vcpus', 2)} vCPU × ${num(params, 'parallelPerVcpu', 8)} = ${sizing.cpuSlots} CPU slots; ${(num(params, 'ramGB', 4) - (colocated ? num(params, 'dbBufferGB', 1) : 0)).toFixed(1)} GB ÷ ${num(params, 'memPerReqMB', 40)} MB = ${sizing.memSlots} RAM slots ⇒ ${concurrency} concurrent/replica (${sizing.bound}-bound).`,
         formula: 'concurrency = min(vcpus·parallelPerVcpu, ramGB·1024 / memPerReqMB)',
         dominantTerm: sizing.bound === 'ram' ? 'RAM per request' : 'vCPU count',
       },
