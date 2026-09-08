@@ -217,6 +217,15 @@ function rankFixes(
           costHint: 'config',
         });
       }
+      if (p.colocatedDb) {
+        candidates.push({
+          nodeId: n.id,
+          label: `Move ${lbl(n)}'s database onto its own host`,
+          patch: { colocatedDb: false },
+          cost: 12,
+          costHint: 'split app / DB',
+        });
+      }
     }
 
     if (n.type === 'sqlDatabase') {
@@ -301,9 +310,17 @@ function rankFixes(
     }
 
     if (n.type === 'loadBalancer') {
+      const lbN = numOr(p.instances, 1);
       candidates.push({
         nodeId: n.id,
-        label: `Double ${lbl(n)} capacity`,
+        label: `Add a balancer instance to ${lbl(n)} (${lbN} → ${lbN + 1})`,
+        patch: { instances: lbN + 1 },
+        cost: 7,
+        costHint: '+1 LB instance',
+      });
+      candidates.push({
+        nodeId: n.id,
+        label: `Double ${lbl(n)} instance capacity`,
         patch: { capacityRps: numOr(p.capacityRps, 50000) * 2 },
         cost: 8,
         costHint: 'bigger LB',

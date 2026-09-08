@@ -92,6 +92,31 @@ Mean metrics and blocking are exact. Percentiles reuse the M/M/c survival functi
 evaluated at the accepted load λ_eff — a standard approximation; results carry
 `approxPercentiles: true`.
 
+## Component notes
+
+### Multiple load balancers
+
+`instances` runs the balancer active-active. The tier is one M/M/c pool with
+`c = instances` and `μ = capacityRps` per instance, so utilization is
+`ρ = λ / (instances · capacityRps)` and one instance failing is no longer a total
+outage. `scaleParam` exposes it as the `±` stepper on the node.
+
+### Co-located database (app + DB on one box)
+
+`colocatedDb` folds a local datastore into the app server instead of a separate
+node — the small-deployment reality. The two workloads share one resource pool:
+
+```
+serviceMs      = handlerMs + queriesPerRequest · dbQueryMs   (shared CPU)
+ramForRequests = ramGB − dbBufferGB                          (buffer pool takes RAM)
+```
+
+The query time inflates every request's service time (raising ρ and latency
+through the same `1/(1−ρ)` term); the buffer pool eats into the RAM that would
+otherwise hold in-flight requests — which is how a single box tips from CPU-bound
+to RAM-bound once the database moves onto it. The bottleneck detector offers
+"move the database onto its own host" and re-solves to show the gain.
+
 ## References
 
 - L. Kleinrock, *Queueing Systems, Volume 1: Theory*, Wiley, 1975.

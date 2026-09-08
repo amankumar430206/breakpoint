@@ -49,6 +49,27 @@ describe('worker', () => {
   });
 });
 
+describe('loadBalancer — multiple instances', () => {
+  const m = getModel('loadBalancer');
+  it('utilization falls ~1/n as active-active instances are added', () => {
+    const one = m.solve(ctx({ params: { capacityRps: 10000, instances: 1 }, inflow: 8000 }));
+    const four = m.solve(ctx({ params: { capacityRps: 10000, instances: 4 }, inflow: 8000 }));
+    expect(one.metrics.rho).toBeCloseTo(0.8, 3);
+    expect(four.metrics.rho).toBeCloseTo(0.2, 3);
+  });
+  it('one instance saturates where a pair has headroom', () => {
+    const solo = m.solve(ctx({ params: { capacityRps: 10000, instances: 1 }, inflow: 12000 }));
+    const pair = m.solve(ctx({ params: { capacityRps: 10000, instances: 2 }, inflow: 12000 }));
+    expect(solo.metrics.overloaded).toBe(true);
+    expect(pair.metrics.overloaded).toBe(false);
+    expect(pair.metrics.rho).toBeCloseTo(0.6, 3);
+  });
+  it('scales on `instances`', () => {
+    expect(m.scaleParam).toMatchObject({ key: 'instances' });
+    expect(m.simSpec({ instances: 3 }).servers).toBe(3);
+  });
+});
+
 describe('objectStore', () => {
   const m = getModel('objectStore');
   it('is a sink with a latency floor and huge capacity', () => {

@@ -27,6 +27,10 @@ function replicasOf(type: ComponentType, p: Record<string, unknown>): { count: n
     const n = Math.max(1, Math.round(Number(p.replicas ?? 1)));
     return { count: n, label: n > 1 ? `${n} workers` : undefined };
   }
+  if (type === 'loadBalancer') {
+    const n = Math.max(1, Math.round(Number(p.instances ?? 1)));
+    return { count: n, label: n > 1 ? `${n} instances` : undefined };
+  }
   if (type === 'sqlDatabase') {
     const arch = String(p.architecture ?? 'primary-replica');
     if (arch === 'primary-replica') {
@@ -167,6 +171,14 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
             <ComponentIcon type={t} />
           </span>
           <span className="truncate text-[13px] font-medium">{d.label}</span>
+          {t === 'apiServer' && d.params.colocatedDb ? (
+            <span
+              className="shrink-0 rounded bg-[var(--tm-chip)] px-1 text-[9px] font-medium text-[var(--tm-text-dim)]"
+              title="Database runs on this box"
+            >
+              +db
+            </span>
+          ) : null}
           {isExternal ? (
             <span
               className="ml-auto rounded px-1 text-[9px] font-medium uppercase tracking-wide"
