@@ -40,7 +40,7 @@ const DEFAULT_EDGE_OPTIONS = { type: 'flow' };
  * metrics update re-renders only the components whose numbers changed, and the
  * `nodes`/`edges` array identity stays stable while the simulation runs.
  */
-function CanvasInner() {
+function CanvasInner({ readOnly = false }: { readOnly?: boolean }) {
   const nodes = useDesignStore((s) => s.nodes);
   const edges = useDesignStore((s) => s.edges);
   const onNodesChange = useDesignStore((s) => s.onNodesChange);
@@ -119,6 +119,16 @@ function CanvasInner() {
   }, []);
   const closeMenu = useCallback(() => setMenu(null), []);
 
+  const ro = readOnly
+    ? {
+        nodesDraggable: false,
+        nodesConnectable: false,
+        elementsSelectable: false,
+        panOnDrag: true,
+        zoomOnScroll: true,
+      }
+    : {};
+
   return (
     <>
       <ReactFlow
@@ -126,26 +136,27 @@ function CanvasInner() {
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
-        onPaneClick={onPaneClick}
-        onNodeContextMenu={onNodeCtx}
-        onEdgeContextMenu={onEdgeCtx}
-        onPaneContextMenu={onPaneCtx}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
+        onNodesChange={readOnly ? undefined : onNodesChange}
+        onEdgesChange={readOnly ? undefined : onEdgesChange}
+        onConnect={readOnly ? undefined : onConnect}
+        onNodeClick={readOnly ? undefined : onNodeClick}
+        onEdgeClick={readOnly ? undefined : onEdgeClick}
+        onPaneClick={readOnly ? undefined : onPaneClick}
+        onNodeContextMenu={readOnly ? undefined : onNodeCtx}
+        onEdgeContextMenu={readOnly ? undefined : onEdgeCtx}
+        onPaneContextMenu={readOnly ? undefined : onPaneCtx}
+        onDrop={readOnly ? undefined : onDrop}
+        onDragOver={readOnly ? undefined : onDragOver}
         fitView
         minZoom={0.2}
         maxZoom={2}
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+        {...ro}
       >
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--tm-dot-grid)" />
-        <Controls showInteractive={false} />
+        {!readOnly && <Controls showInteractive={false} />}
       </ReactFlow>
-      {menu && <ContextMenu menu={menu} onClose={closeMenu} />}
+      {!readOnly && menu && <ContextMenu menu={menu} onClose={closeMenu} />}
     </>
   );
 }

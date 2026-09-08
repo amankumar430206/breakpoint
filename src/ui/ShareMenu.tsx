@@ -5,7 +5,7 @@ import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
 import { toDesign } from '@/lib/design';
 import { serializeDesign, parseDesignJson } from '@/lib/serialize';
-import { shareUrl } from '@/lib/shareUrl';
+import { designToHash, shareUrl } from '@/lib/shareUrl';
 import { buildReport } from '@/lib/report';
 import { downloadText, slugify } from '@/lib/download';
 import { exportCanvasPng, exportCanvasSvg } from '@/lib/exportImage';
@@ -54,6 +54,19 @@ function ShareMenuInner({
     downloadText(`${slugify(d.name)}.json`, serializeDesign(d), 'application/json');
   });
 
+  const copyEmbed = act(async () => {
+    const d = currentDesign();
+    const { origin, pathname } = window.location;
+    const url = `${origin}${pathname.replace(/sandbox\/?$/, 'embed')}?${designToHash(d).slice(1)}`;
+    const iframe = `<iframe src="${url}" width="720" height="460" style="border:1px solid #d0d0d0;border-radius:10px" title="${d.name} — Breakpoint" loading="lazy"></iframe>`;
+    try {
+      await navigator.clipboard.writeText(iframe);
+      say('Embed code copied');
+    } catch {
+      say('Copy failed');
+    }
+  });
+
   const downloadReport = act(() => {
     const d = currentDesign();
     const { analysis } = useViewStore.getState();
@@ -98,6 +111,7 @@ function ShareMenuInner({
           <div className="fixed inset-0 z-40" onClick={close} />
           <div className="absolute right-0 top-full z-50 mt-1 min-w-[190px] overflow-hidden rounded-md border border-[var(--tm-border-2)] bg-[var(--tm-panel)] py-1 text-xs shadow-xl">
             <MenuItem onClick={copyLink}>Copy share link</MenuItem>
+            <MenuItem onClick={copyEmbed}>Copy embed code</MenuItem>
             <MenuItem onClick={downloadJson}>Download JSON</MenuItem>
             <MenuItem onClick={() => fileRef.current?.click()}>Import JSON…</MenuItem>
             <div className="my-1 border-t border-[var(--tm-border)]" />
