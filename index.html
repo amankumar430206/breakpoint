@@ -146,8 +146,10 @@
       }
 
       /* ---- hero ---- */
+      /* `.hero` also carries `.wrap`, but this padding shorthand replaces the
+         wrap's side padding — so restore it here, with extra breathing room. */
       .hero {
-        padding: 84px 0 64px;
+        padding: 96px 28px 76px;
       }
       .eyebrow {
         font-family: var(--mono);
@@ -484,7 +486,7 @@
         }
 
         .hero {
-          padding: 44px 0 40px;
+          padding: 52px 20px 44px;
         }
         .eyebrow {
           font-size: 11px;
