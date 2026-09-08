@@ -78,6 +78,45 @@ function fromSim(s: SimNodeMetrics): NodeMetrics {
   };
 }
 
+/** Bucket a value so sub-visible jitter doesn't count as a change. `Infinity` /
+ *  `NaN` are their own buckets (both mean "saturated"). */
+function q(x: number, step: number): number {
+  return Number.isFinite(x) ? Math.round(x / step) : x > 0 ? Infinity : NaN;
+}
+
+/**
+ * True when two per-node metric sets are equal at display resolution. Lets
+ * `applySnapshot` hand back the *previous* object reference for a quiescent
+ * node, so memo'd `ComponentNode`s subscribed to `perNode[id]` stop
+ * re-rendering ~15×/s when nothing about that node actually moved.
+ */
+function sameNodeMetrics(a: NodeMetrics, b: NodeMetrics): boolean {
+  return (
+    a.servers === b.servers &&
+    a.overloaded === b.overloaded &&
+    a.stable === b.stable &&
+    Object.is(q(a.rho, 1e-3), q(b.rho, 1e-3)) &&
+    Object.is(q(a.arrivalRate, 1e-2), q(b.arrivalRate, 1e-2)) &&
+    Object.is(q(a.throughput, 1e-2), q(b.throughput, 1e-2)) &&
+    Object.is(q(a.backlogGrowth, 1e-2), q(b.backlogGrowth, 1e-2)) &&
+    Object.is(q(a.inQueue, 1e-2), q(b.inQueue, 1e-2)) &&
+    Object.is(q(a.inSystem, 1e-2), q(b.inSystem, 1e-2)) &&
+    Object.is(q(a.dropRate, 1e-4), q(b.dropRate, 1e-4)) &&
+    Object.is(q(a.errorRate, 1e-4), q(b.errorRate, 1e-4)) &&
+    Object.is(q(a.latency.mean, 1e-4), q(b.latency.mean, 1e-4)) &&
+    Object.is(q(a.latency.p50, 1e-4), q(b.latency.p50, 1e-4)) &&
+    Object.is(q(a.latency.p95, 1e-4), q(b.latency.p95, 1e-4)) &&
+    Object.is(q(a.latency.p99, 1e-4), q(b.latency.p99, 1e-4))
+  );
+}
+
+function sameEdgeMetrics(a: EdgeMetrics, b: EdgeMetrics): boolean {
+  return (
+    Object.is(q(a.flow, 1e-2), q(b.flow, 1e-2)) &&
+    Object.is(q(a.retryFactor, 1e-3), q(b.retryFactor, 1e-3))
+  );
+}
+
 export const useViewStore = create<ViewState>((set, get) => ({
   mode: 'analytical',
   perNode: {},
@@ -123,14 +162,49 @@ export const useViewStore = create<ViewState>((set, get) => ({
   },
 
   applySnapshot: (snap) => {
+    const prevNode = get().perNode;
+    const prevEdge = get().perEdge;
+
+    // Reuse the previous entry object when a node/edge is unchanged at display
+    // resolution — that's what lets memo'd ComponentNode / FlowEdge skip the
+    // ~15 Hz re-render for the quiescent parts of the graph.
     const perNode: Record<string, NodeMetrics> = {};
-    for (const [id, m] of Object.entries(snap.perNode)) perNode[id] = fromSim(m);
-    const perEdge: Record<string, EdgeMetrics> = {};
-    for (const [id, e] of Object.entries(snap.perEdge)) {
-      perEdge[id] = { flow: e.flow, retryFactor: e.retryFactor, netLatencySec: 0 };
+    let anyOverloaded = false;
+    let nodeChanged = false;
+    for (const [id, m] of Object.entries(snap.perNode)) {
+      const fresh = fromSim(m);
+      if (fresh.overloaded) anyOverloaded = true;
+      const prev = prevNode[id];
+      if (prev && sameNodeMetrics(prev, fresh)) perNode[id] = prev;
+      else {
+        perNode[id] = fresh;
+        nodeChanged = true;
+      }
     }
+    if (!nodeChanged && Object.keys(prevNode).length !== Object.keys(perNode).length) {
+      nodeChanged = true;
+    }
+
+    const perEdge: Record<string, EdgeMetrics> = {};
+    let edgeChanged = false;
+    for (const [id, e] of Object.entries(snap.perEdge)) {
+      const fresh: EdgeMetrics = { flow: e.flow, retryFactor: e.retryFactor, netLatencySec: 0 };
+      const prev = prevEdge[id];
+      if (prev && sameEdgeMetrics(prev, fresh)) perEdge[id] = prev;
+      else {
+        perEdge[id] = fresh;
+        edgeChanged = true;
+      }
+    }
+    if (!edgeChanged && Object.keys(prevEdge).length !== Object.keys(perEdge).length) {
+      edgeChanged = true;
+    }
+
+    const perNodeOut = nodeChanged ? perNode : prevNode;
+    const perEdgeOut = edgeChanged ? perEdge : prevEdge;
+
     const nid = get().seriesNodeId;
-    const nodeM = nid ? perNode[nid] : undefined;
+    const nodeM = nid ? perNodeOut[nid] : undefined;
     const point: SeriesPoint = {
       t: snap.simTime,
       offeredRps: snap.system.offeredRps,
@@ -146,11 +220,11 @@ export const useViewStore = create<ViewState>((set, get) => ({
 
     set({
       mode: 'live',
-      perNode,
-      perEdge,
+      perNode: perNodeOut,
+      perEdge: perEdgeOut,
       system: {
         ...snap.system,
-        healthy: !Object.values(perNode).some((n) => n.overloaded),
+        healthy: !anyOverloaded,
       },
       simTime: snap.simTime,
       series,
