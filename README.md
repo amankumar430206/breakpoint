@@ -10,12 +10,11 @@ rate, retry amplification and circuit-breaker state propagate through the graph 
 real time. Add a replica and watch p99 recover. Delete the load balancer and watch
 one server melt.
 
-<!-- Replace OWNER with your GitHub user/org once the repo is pushed. -->
-[![CI](https://github.com/OWNER/breakpoint/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/breakpoint/actions/workflows/ci.yml)
-[![Deploy](https://github.com/OWNER/breakpoint/actions/workflows/deploy.yml/badge.svg)](https://github.com/OWNER/breakpoint/actions/workflows/deploy.yml)
+[![CI](https://github.com/amankumar430206/breakpoint/actions/workflows/ci.yml/badge.svg)](https://github.com/amankumar430206/breakpoint/actions/workflows/ci.yml)
+[![Deploy](https://github.com/amankumar430206/breakpoint/actions/workflows/deploy.yml/badge.svg)](https://github.com/amankumar430206/breakpoint/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**[▶ Live demo](https://OWNER.github.io/breakpoint/)** &nbsp;·&nbsp;
+**[▶ Live demo](https://breakpoint-snowy.vercel.app/)** &nbsp;·&nbsp;
 [The math](docs/model.md) &nbsp;·&nbsp; [Contributing](CONTRIBUTING.md)
 
 <!-- Drop a screen recording here — it does most of the selling. -->
