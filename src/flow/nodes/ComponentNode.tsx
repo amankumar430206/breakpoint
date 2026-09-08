@@ -94,7 +94,8 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const clientLoad = useSimStore((s) => {
     if (t !== 'client') return '';
     const sc = s.scenario;
-    return sc.mode === 'users' ? `${(sc.users ?? 0).toLocaleString()} users` : fmtRps(sc.targetRps);
+    const base = sc.mode === 'users' ? `${(sc.users ?? 0).toLocaleString()} users` : fmtRps(sc.targetRps);
+    return sc.kind === 'wander' ? `${base} · varying` : base;
   });
 
   const scale = resolveScaleParam(model, d.params);

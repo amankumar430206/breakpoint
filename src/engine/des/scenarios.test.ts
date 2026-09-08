@@ -46,8 +46,23 @@ describe('scenarios', () => {
     expect(arrivalRate(c, 80)).toBeLessThan(150);
   });
 
+  it('wander fluctuates within [baseline, peak] and is deterministic', () => {
+    const c = sc({ kind: 'wander' });
+    let min = Infinity;
+    let max = -Infinity;
+    for (let t = 0; t <= 100; t += 0.5) {
+      const r = arrivalRate(c, t);
+      expect(r).toBeGreaterThanOrEqual(100 - 1e-6);
+      expect(r).toBeLessThanOrEqual(500 + 1e-6);
+      min = Math.min(min, r);
+      max = Math.max(max, r);
+    }
+    expect(max - min).toBeGreaterThan(150); // it actually moves
+    expect(arrivalRate(c, 37)).toBe(arrivalRate(c, 37));
+  });
+
   it('all non-constant scenarios expose peak as their max', () => {
-    for (const kind of ['ramp', 'diurnal', 'spike', 'thunderingHerd'] as const) {
+    for (const kind of ['wander', 'ramp', 'diurnal', 'spike', 'thunderingHerd'] as const) {
       expect(maxArrivalRate(sc({ kind }))).toBe(500);
     }
   });

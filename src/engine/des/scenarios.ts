@@ -14,6 +14,19 @@ export function arrivalRate(sc: ScenarioConfig, t: number): number {
     case 'constant':
       return base;
 
+    case 'wander': {
+      // Organic, deterministic fluctuation between ~base and ~peak — a few
+      // incommensurate sines so it reads as "real traffic noise", not a clean
+      // wave. Same t ⇒ same value (both engines call this).
+      const w =
+        0.5 +
+        0.30 * Math.sin(2 * Math.PI * (u * 3.1 + 0.13)) +
+        0.13 * Math.sin(2 * Math.PI * (u * 8.7 + 0.51)) +
+        0.07 * Math.sin(2 * Math.PI * (u * 21.3 + 0.29));
+      const s = Math.min(1, Math.max(0, w));
+      return base + (peak - base) * s;
+    }
+
     case 'ramp':
       return base + (peak - base) * u;
 

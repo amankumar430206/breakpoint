@@ -18,6 +18,7 @@ const TIP = {
 
 const SCENARIOS: { kind: ScenarioKind; label: string }[] = [
   { kind: 'constant', label: 'Constant' },
+  { kind: 'wander', label: 'Wander' },
   { kind: 'ramp', label: 'Ramp' },
   { kind: 'diurnal', label: 'Diurnal' },
   { kind: 'spike', label: 'Spike' },

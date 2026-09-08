@@ -22,7 +22,7 @@ const edgeSchema = z.object({
 });
 
 const scenarioSchema = z.object({
-  kind: z.enum(['constant', 'ramp', 'diurnal', 'spike', 'thunderingHerd']),
+  kind: z.enum(['constant', 'wander', 'ramp', 'diurnal', 'spike', 'thunderingHerd']),
   mode: z.enum(['rps', 'users']).optional(),
   targetRps: z.number().nonnegative(),
   users: z.number().nonnegative().optional(),

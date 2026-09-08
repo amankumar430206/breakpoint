@@ -59,7 +59,13 @@ export interface EdgeSpec {
   params: EdgeParams;
 }
 
-export type ScenarioKind = 'constant' | 'ramp' | 'diurnal' | 'spike' | 'thunderingHerd';
+export type ScenarioKind =
+  | 'constant'
+  | 'wander'
+  | 'ramp'
+  | 'diurnal'
+  | 'spike'
+  | 'thunderingHerd';
 
 /**
  * How offered load is specified:

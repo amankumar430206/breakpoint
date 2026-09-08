@@ -16,7 +16,7 @@ export function randomScenario(seed: number = (Math.random() * 1e9) >>> 0): SimC
   const usersMode = rng.next() < 0.6;
   const level = pick([200, 500, 1000, 3000, 8000, 20000, 60000]);
   const scenario: ScenarioConfig = {
-    kind: pick(['constant', 'constant', 'ramp', 'diurnal', 'spike', 'thunderingHerd'] as const),
+    kind: pick(['constant', 'constant', 'wander', 'ramp', 'diurnal', 'spike', 'thunderingHerd'] as const),
     mode: usersMode ? 'users' : 'rps',
     targetRps: level,
     users: level,

@@ -204,12 +204,16 @@ function ClientInspector({
   const setUsers = useSimStore((s) => s.setUsers);
   const setTargetRps = useSimStore((s) => s.setTargetRps);
   const setThinkTime = useSimStore((s) => s.setThinkTime);
+  const setScenarioKind = useSimStore((s) => s.setScenarioKind);
+  const setPeakFactor = useSimStore((s) => s.setPeakFactor);
   const system = useViewStore((s) => s.system);
 
   const usersMode = scenario.mode === 'users';
   const users = scenario.users ?? 0;
   const thinkTime = scenario.thinkTimeSec ?? 1;
   const effectiveRps = system.offeredRps || users / thinkTime;
+  const varying = scenario.kind === 'wander';
+  const swing = scenario.peakFactor ?? 3;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -323,14 +327,56 @@ function ClientInspector({
         </>
       )}
 
+      <div className="flex flex-col gap-2 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2">
+        <label className="flex items-center justify-between text-[11px]">
+          <span className="text-[var(--tm-text-dim)]">
+            Vary {usersMode ? 'users' : 'load'} over the run
+          </span>
+          <button
+            onClick={() => {
+              if (varying) setScenarioKind('constant');
+              else {
+                setScenarioKind('wander');
+                if ((scenario.peakFactor ?? 1) <= 1) setPeakFactor(3);
+              }
+            }}
+            className="rounded px-2 py-0.5 text-[11px]"
+            style={{
+              background: varying ? 'var(--tm-good-bg)' : 'var(--tm-btn-hover)',
+              color: varying ? 'var(--tm-good-fg)' : 'var(--tm-text-dim)',
+            }}
+          >
+            {varying ? 'on' : 'off'}
+          </button>
+        </label>
+        {varying && (
+          <label className="flex flex-col gap-1 text-[11px]">
+            <span className="flex items-center justify-between">
+              <span className="text-[var(--tm-text-faint)]">swing (baseline → up to)</span>
+              <span className="tabnum text-[var(--tm-text)]">×{swing.toFixed(1)}</span>
+            </span>
+            <input
+              type="range"
+              min={1.2}
+              max={10}
+              step={0.1}
+              value={swing}
+              onChange={(e) => setPeakFactor(Number(e.target.value))}
+              className="accent-[var(--tm-accent)]"
+            />
+          </label>
+        )}
+      </div>
+
       <div className="tabnum grid grid-cols-2 gap-1 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
-        <Metric label={usersMode ? '≈ offered' : 'offered'} value={fmtRps(effectiveRps)} />
+        <Metric label={usersMode || varying ? '≈ offered' : 'offered'} value={fmtRps(effectiveRps)} />
         <Metric label="served" value={fmtRps(system.servedRps)} />
       </div>
 
       <p className="text-[10px] leading-snug text-[var(--tm-text-faint)]">
-        This is the run’s offered load — the same control as the scenario bar above. Shape (ramp /
-        spike), duration and seed live there too.
+        The offered load — the same control as the scenario bar. “Vary” drives realistic traffic
+        noise (the <span className="text-[var(--tm-text-dim)]">Wander</span> scenario); the ramp /
+        spike shapes, duration and seed live in the bar.
       </p>
 
       <button
