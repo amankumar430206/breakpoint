@@ -13,6 +13,7 @@ import {
   relativeTime,
   saveProject,
 } from '@/lib/projectStore';
+import { ProjectPickerModal } from './ProjectPickerModal';
 
 function ProjectsMenuInner({
   title,
@@ -28,6 +29,7 @@ function ProjectsMenuInner({
   onSaved: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [picker, setPicker] = useState(false);
   const [tick, setTick] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -94,8 +96,21 @@ function ProjectsMenuInner({
             </button>
 
             <div className="my-1 border-t border-[var(--tm-border)]" />
-            <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
-              Recent {projects.length > 0 && `(${projects.length})`}
+            <div className="flex items-center justify-between px-3 py-1">
+              <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+                Recent {projects.length > 0 && `(${projects.length})`}
+              </span>
+              {projects.length > 6 && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    setPicker(true);
+                  }}
+                  className="text-[10px] text-[var(--tm-accent-soft)] hover:underline"
+                >
+                  Browse all…
+                </button>
+              )}
             </div>
 
             {projects.length === 0 ? (
@@ -153,6 +168,16 @@ function ProjectsMenuInner({
             )}
           </div>
         </>
+      )}
+
+      {picker && (
+        <ProjectPickerModal
+          onOpen={onOpen}
+          onClose={() => {
+            setPicker(false);
+            setTick((t) => t + 1);
+          }}
+        />
       )}
     </div>
   );

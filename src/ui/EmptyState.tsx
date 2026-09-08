@@ -1,8 +1,11 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { listProjects, relativeTime } from '@/lib/projectStore';
 import { PRESETS } from '@/presets';
+import { ProjectPickerModal } from './ProjectPickerModal';
+
+const RECENT_SHOWN = 5;
 
 function EmptyStateInner({
   onLoaded,
@@ -17,9 +20,11 @@ function EmptyStateInner({
 }) {
   const replaceGraph = useDesignStore((s) => s.replaceGraph);
   const addNode = useDesignStore((s) => s.addNode);
-  // Mounted only while the canvas is empty (no sim running), and never updates
-  // in place — read the browser library once.
-  const recent = useMemo(() => listProjects().slice(0, 4), []);
+  const [picker, setPicker] = useState(false);
+  const [tick, setTick] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const all = useMemo(() => listProjects(), [tick]);
+  const recent = all.slice(0, RECENT_SHOWN);
 
   const blank = () => {
     replaceGraph([], []);
@@ -39,22 +44,34 @@ function EmptyStateInner({
         </p>
 
         {recent.length > 0 && (
-          <div className="mt-5">
-            <div className="mb-2 text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+          <div className="mt-5 text-left">
+            <div className="mb-1.5 text-center text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
               Recent
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
+            <div className="mx-auto flex max-w-[300px] flex-col gap-1">
               {recent.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => onOpenProject(p.design, p.id)}
-                  title={`${p.design.nodes.length} nodes · ${relativeTime(p.updatedAt)}`}
-                  className="max-w-[180px] truncate rounded-lg border border-[var(--tm-border-2)] bg-[var(--tm-btn)] px-3 py-1.5 text-xs text-[var(--tm-text)] hover:bg-[var(--tm-btn-hover)]"
+                  className="flex items-baseline gap-2 rounded border border-[var(--tm-border)] bg-[var(--tm-btn)] px-2.5 py-1.5 text-xs hover:bg-[var(--tm-btn-hover)]"
                 >
-                  {p.name}
+                  <span className="min-w-0 flex-1 truncate text-left text-[var(--tm-text)]">
+                    {p.name}
+                  </span>
+                  <span className="tabnum shrink-0 text-[10px] text-[var(--tm-text-faint)]">
+                    {p.design.nodes.length}n · {relativeTime(p.updatedAt)}
+                  </span>
                 </button>
               ))}
             </div>
+            {all.length > RECENT_SHOWN && (
+              <button
+                onClick={() => setPicker(true)}
+                className="mx-auto mt-1.5 block text-[11px] text-[var(--tm-accent-soft)] hover:underline"
+              >
+                Show all {all.length} →
+              </button>
+            )}
           </div>
         )}
 
@@ -90,6 +107,18 @@ function EmptyStateInner({
           </button>
         </div>
       </div>
+
+      {picker && (
+        <div className="pointer-events-auto">
+          <ProjectPickerModal
+            onOpen={onOpenProject}
+            onClose={() => {
+              setPicker(false);
+              setTick((t) => t + 1);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
