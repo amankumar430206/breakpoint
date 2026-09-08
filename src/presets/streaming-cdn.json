@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "Video streaming (CDN)",
+  "description": "A CDN serves the overwhelming majority of segment requests from the edge; only cache-fill traffic reaches the origin service, which pulls segments from object storage.",
+  "notes": "Lower the CDN offload ratio (cache-hit rate at the edge) and watch origin load multiply. Object storage has a latency floor but effectively unlimited throughput.",
+  "nodes": [
+    { "id": "viewers", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Viewers", "params": {} },
+    { "id": "cdn", "type": "cdn", "position": { "x": 320, "y": 150 }, "label": "CDN", "params": { "offloadRatio": 0.97, "edgeLatencyMs": 20, "edgeCapacityRps": 3000000 } },
+    { "id": "alb", "type": "loadBalancer", "position": { "x": 320, "y": 300 }, "label": "Origin LB", "params": { "capacityRps": 40000 } },
+    { "id": "origin", "type": "apiServer", "position": { "x": 320, "y": 450 }, "label": "origin-svc", "params": { "serviceTimeMs": 12, "vcpus": 8, "ramGB": 16, "replicas": 3 } },
+    { "id": "manifest", "type": "cache", "position": { "x": 120, "y": 600 }, "label": "manifest cache", "params": { "hitRatio": 0.8, "hitLatencyMs": 2 } },
+    { "id": "blobs", "type": "objectStore", "position": { "x": 520, "y": 600 }, "label": "S3 (segments)", "params": { "opLatencyMs": 30, "opsRps": 500000 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "viewers", "target": "cdn", "params": {} },
+    { "id": "e2", "source": "cdn", "target": "alb", "params": {} },
+    { "id": "e3", "source": "alb", "target": "origin", "params": {} },
+    { "id": "e4", "source": "origin", "target": "manifest", "params": {} },
+    { "id": "e5", "source": "origin", "target": "blobs", "params": { "retries": 2, "timeoutSec": 1 } }
+  ],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 25000, "users": 25000, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 5 },
+    "seed": 1,
+    "speed": 5
+  }
+}
