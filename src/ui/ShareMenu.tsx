@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -10,7 +10,7 @@ import { buildReport } from '@/lib/report';
 import { downloadText, slugify } from '@/lib/download';
 import { exportCanvasPng, exportCanvasSvg } from '@/lib/exportImage';
 
-export function ShareMenu({
+function ShareMenuInner({
   title,
   onImport,
 }: {
@@ -115,6 +115,8 @@ export function ShareMenu({
     </div>
   );
 }
+
+export const ShareMenu = memo(ShareMenuInner);
 
 function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (

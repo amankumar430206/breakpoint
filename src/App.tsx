@@ -9,25 +9,23 @@ import { Inspector } from '@/ui/Inspector';
 import { EmptyState } from '@/ui/EmptyState';
 import { BottleneckPanel } from '@/ui/BottleneckPanel';
 import { MetricsDrawer } from '@/ui/MetricsDrawer';
+import { AutoSave } from '@/ui/AutoSave';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useSimWorker } from '@/store/simWorker';
 import { useThemeStore } from '@/store/themeStore';
-import { fromDesign, toDesign } from '@/lib/design';
+import { fromDesign } from '@/lib/design';
 import { designFromHash } from '@/lib/shareUrl';
 import { randomDesign } from '@/lib/randomDesign';
-import { newProjectId, saveProject } from '@/lib/projectStore';
 import { getPreset } from '@/presets';
 
 export function App() {
-  const nodes = useDesignStore((s) => s.nodes);
-  const edges = useDesignStore((s) => s.edges);
-  const nodeCount = nodes.length;
+  // Only the count — a primitive — so App does NOT re-render on every node/edge
+  // edit or drag frame (autosave's nodes/edges subscription lives in <AutoSave/>).
+  const nodeCount = useDesignStore((s) => s.nodes.length);
   const replaceGraph = useDesignStore((s) => s.replaceGraph);
   const loadSim = useSimStore((s) => s.loadSim);
   const reset = useSimStore((s) => s.reset);
-  const scenario = useSimStore((s) => s.scenario);
-  const seed = useSimStore((s) => s.seed);
   const [title, setTitle] = useState('Untitled design');
   const [projectId, setProjectId] = useState<string | null>(null);
   const theme = useThemeStore((s) => s.theme);
@@ -45,22 +43,6 @@ export function App() {
     [replaceGraph, loadSim],
   );
 
-  // Auto-save the working design into the browser-local library (debounced), so
-  // the "recent" list fills itself. A brand-new design gets a fresh id.
-  useEffect(() => {
-    if (nodeCount === 0) return;
-    const t = setTimeout(() => {
-      const { speed } = useSimStore.getState();
-      const design = toDesign(nodes, edges, { scenario, seed, speed }, { name: title });
-      setProjectId((cur) => {
-        const id = cur ?? newProjectId();
-        saveProject(design, id);
-        return id;
-      });
-    }, 1500);
-    return () => clearTimeout(t);
-  }, [nodes, edges, scenario, seed, title, nodeCount]);
-
   const loadPreset = useCallback(
     (id: string) => {
       const design = getPreset(id);
@@ -75,21 +57,24 @@ export function App() {
     if (shared) applyDesign(shared);
   }, [applyDesign]);
 
-  const startNew = () => {
+  const startNew = useCallback(() => {
     reset();
     replaceGraph([], []);
     setTitle('Untitled design');
     setProjectId(null);
-  };
+  }, [reset, replaceGraph]);
 
-  const randomize = () => applyDesign(randomDesign());
-  const openProject = (design: SystemDesign, id: string) => applyDesign(design, id);
+  const randomize = useCallback(() => applyDesign(randomDesign()), [applyDesign]);
+  const openProject = useCallback(
+    (design: SystemDesign, id: string) => applyDesign(design, id),
+    [applyDesign],
+  );
+  const handleImport = useCallback((d: SystemDesign) => applyDesign(d), [applyDesign]);
 
   return (
     <ReactFlowProvider>
-      <div
-        className={`flex h-full flex-col overflow-hidden ${theme === 'light' ? 'tm-light' : ''}`}
-      >
+      <div className={`flex h-full flex-col overflow-hidden ${theme === 'light' ? 'tm-light' : ''}`}>
+        <AutoSave title={title} onSaved={setProjectId} />
         <TopBar
           title={title}
           hasDesign={nodeCount > 0}
@@ -97,7 +82,7 @@ export function App() {
           onNew={startNew}
           onRandomize={randomize}
           onLoadPreset={loadPreset}
-          onImport={(d) => applyDesign(d)}
+          onImport={handleImport}
           onOpenProject={openProject}
           onProjectSaved={setProjectId}
           onTitleChange={setTitle}

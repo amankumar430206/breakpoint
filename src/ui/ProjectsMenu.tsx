@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -14,7 +14,7 @@ import {
   saveProject,
 } from '@/lib/projectStore';
 
-export function ProjectsMenu({
+function ProjectsMenuInner({
   title,
   currentId,
   hasDesign,
@@ -31,8 +31,11 @@ export function ProjectsMenu({
   const [tick, setTick] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
 
-  const projects = listProjects();
-  void tick; // re-list after save / delete
+  // Only touch localStorage while the menu is open (this component is a child of
+  // the top bar, which re-renders with every sim snapshot). `tick` is a manual
+  // invalidation bumped after save / delete.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const projects = useMemo(() => (open ? listProjects() : []), [open, tick]);
 
   const currentDesign = (): SystemDesign => {
     const { nodes, edges } = useDesignStore.getState();
@@ -154,3 +157,5 @@ export function ProjectsMenu({
     </div>
   );
 }
+
+export const ProjectsMenu = memo(ProjectsMenuInner);

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { SystemDesign } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -10,7 +11,7 @@ import { ShareMenu } from './ShareMenu';
 import { ProjectsMenu } from './ProjectsMenu';
 import { Spinner } from './Spinner';
 
-export function TopBar({
+export const TopBar = memo(function TopBar({
   title,
   hasDesign,
   projectId,
@@ -42,14 +43,6 @@ export function TopBar({
   const themePref = useThemeStore((s) => s.pref);
   const theme = useThemeStore((s) => s.theme);
   const cycleTheme = useThemeStore((s) => s.cycle);
-  const system = useViewStore((s) => s.system);
-  const converged = useViewStore((s) => s.converged);
-  const warnings = useViewStore((s) => s.warnings);
-  const mode = useViewStore((s) => s.mode);
-  const simTime = useViewStore((s) => s.simTime);
-  const computing = useViewStore((s) => s.computing);
-
-  const err = warnings.find((w) => w.level === 'error');
 
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--tm-border)] bg-[var(--tm-panel)] px-4 py-2 text-sm">
@@ -143,49 +136,71 @@ export function TopBar({
         {themePref === 'system' ? '◐' : theme === 'dark' ? '☀' : '☾'}
       </button>
 
-      <div className="tabnum ml-auto flex shrink-0 items-center gap-4 pl-4 text-xs">
-        {mode === 'live' && (
-          <span className="text-[var(--tm-text-faint)]">t={simTime.toFixed(0)}s · sim</span>
-        )}
-        <Kpi
-          label="offered"
-          value={fmtRps(system.offeredRps)}
-          tip="Requests per second entering the system (after retries)."
-        />
-        <Kpi
-          label="served"
-          value={fmtRps(system.servedRps)}
-          tip="Requests per second that completed successfully — offered minus drops and errors."
-        />
-        <Kpi
-          label="p99"
-          value={fmtDuration(system.latency.p99)}
-          alert={!Number.isFinite(system.latency.p99)}
-          tip="99th-percentile end-to-end latency along the slowest client→sink path. ∞ means a node is saturated with an unbounded queue."
-        />
-        <Kpi
-          label="success"
-          value={fmtPct(system.successRate)}
-          alert={system.successRate < 0.99}
-          tip="Share of offered requests that got a good response. Drops (429/503) and errors both count against it."
-        />
+      <LiveKpis />
+    </header>
+  );
+});
+
+/**
+ * Live system KPIs. Isolated as a leaf so it is the *only* thing that
+ * re-renders with the ~15 Hz simulation snapshots — the top-bar chrome around
+ * it renders once. Every value sits in a fixed-width slot so changing numbers
+ * (e.g. under a varying load) never reflow the header.
+ */
+function LiveKpis() {
+  const system = useViewStore((s) => s.system);
+  const converged = useViewStore((s) => s.converged);
+  const warnings = useViewStore((s) => s.warnings);
+  const mode = useViewStore((s) => s.mode);
+  const simTime = useViewStore((s) => s.simTime);
+  const computing = useViewStore((s) => s.computing);
+  const err = warnings.find((w) => w.level === 'error');
+
+  return (
+    <div className="tabnum ml-auto flex shrink-0 items-center gap-3 pl-4 text-xs">
+      <span className="inline-block w-[6ch] text-right text-[var(--tm-text-faint)]">
+        {mode === 'live' ? `t=${simTime.toFixed(0)}s` : ''}
+      </span>
+      <Kpi
+        label="offered"
+        value={fmtRps(system.offeredRps)}
+        tip="Requests per second entering the system (after retries)."
+      />
+      <Kpi
+        label="served"
+        value={fmtRps(system.servedRps)}
+        tip="Requests per second that completed successfully — offered minus drops and errors."
+      />
+      <Kpi
+        label="p99"
+        value={fmtDuration(system.latency.p99)}
+        alert={!Number.isFinite(system.latency.p99)}
+        tip="99th-percentile end-to-end latency along the slowest client→sink path. ∞ means a node is saturated with an unbounded queue."
+      />
+      <Kpi
+        label="success"
+        value={fmtPct(system.successRate)}
+        alert={system.successRate < 0.99}
+        tip="Share of offered requests that got a good response. Drops (429/503) and errors both count against it."
+      />
+      <span className="inline-flex w-[5rem] items-center justify-end gap-1 text-[var(--tm-text-faint)]">
         {computing && (
-          <span className="flex items-center gap-1.5 text-[var(--tm-text-faint)]" title="Recalculating metrics">
+          <>
             <Spinner size={11} />
             solving…
-          </span>
+          </>
         )}
-        <span
-          className="rounded px-2 py-0.5 text-[11px]"
-          style={{
-            background: err ? 'var(--tm-crit-bg)' : system.healthy ? 'var(--tm-good-bg)' : 'var(--tm-warn-bg)',
-            color: err ? 'var(--tm-crit-fg)' : system.healthy ? 'var(--tm-good-fg)' : 'var(--tm-warn-fg)',
-          }}
-        >
-          {err ? 'invalid' : system.healthy ? 'healthy' : converged ? 'degraded' : 'unstable'}
-        </span>
-      </div>
-    </header>
+      </span>
+      <span
+        className="w-[4.5rem] shrink-0 rounded px-2 py-0.5 text-center text-[11px]"
+        style={{
+          background: err ? 'var(--tm-crit-bg)' : system.healthy ? 'var(--tm-good-bg)' : 'var(--tm-warn-bg)',
+          color: err ? 'var(--tm-crit-fg)' : system.healthy ? 'var(--tm-good-fg)' : 'var(--tm-warn-fg)',
+        }}
+      >
+        {err ? 'invalid' : system.healthy ? 'healthy' : converged ? 'degraded' : 'unstable'}
+      </span>
+    </div>
   );
 }
 
@@ -203,9 +218,20 @@ function Kpi({
   return (
     <div className="flex flex-col items-end leading-tight">
       <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
-        {tip ? <HelpTip text={tip} align="right">{label}</HelpTip> : label}
+        {tip ? (
+          <HelpTip text={tip} align="right">
+            {label}
+          </HelpTip>
+        ) : (
+          label
+        )}
       </span>
-      <span style={{ color: alert ? 'var(--tm-crit-fg)' : 'var(--tm-text)' }}>{value}</span>
+      <span
+        className="inline-block w-[6.5ch] text-right"
+        style={{ color: alert ? 'var(--tm-crit-fg)' : 'var(--tm-text)' }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
