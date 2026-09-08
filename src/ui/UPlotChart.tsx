@@ -7,6 +7,8 @@ export interface UPlotChartProps {
   /** [xValues, ...seriesValues] */
   data: uPlot.AlignedData;
   series: uPlot.Series[];
+  /** Initial / fallback height. The chart otherwise fills its container, so a
+   *  resizable parent just works (ResizeObserver → setSize, no recreation). */
   height: number;
   /** Optional y-axis value formatter. */
   fmtY?: (v: number) => string;
@@ -21,7 +23,8 @@ export function UPlotChart({ data, series, height, fmtY }: UPlotChartProps) {
   const chartRef = useRef<uPlot | null>(null);
   const theme = useThemeStore((s) => s.theme);
 
-  // (Re)create the chart when structure or theme changes.
+  // (Re)create the chart when structure or theme changes. Size is handled live
+  // by the ResizeObserver below, so height changes never recreate.
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -30,7 +33,7 @@ export function UPlotChart({ data, series, height, fmtY }: UPlotChartProps) {
 
     const opts: uPlot.Options = {
       width: host.clientWidth || 600,
-      height,
+      height: host.clientHeight || height,
       padding: [6, 10, 0, 0],
       legend: { show: false },
       cursor: { show: true, y: false, points: { show: false } },
@@ -60,7 +63,9 @@ export function UPlotChart({ data, series, height, fmtY }: UPlotChartProps) {
     chartRef.current = chart;
 
     const ro = new ResizeObserver(() => {
-      if (host.clientWidth) chart.setSize({ width: host.clientWidth, height });
+      const w = host.clientWidth;
+      const h = host.clientHeight || height;
+      if (w) chart.setSize({ width: w, height: h });
     });
     ro.observe(host);
 
@@ -70,12 +75,12 @@ export function UPlotChart({ data, series, height, fmtY }: UPlotChartProps) {
       chartRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, theme, series.length]);
+  }, [theme, series.length]);
 
   // Push new data without recreating.
   useEffect(() => {
     chartRef.current?.setData(data);
   }, [data]);
 
-  return <div ref={hostRef} style={{ width: '100%' }} />;
+  return <div ref={hostRef} style={{ width: '100%', height: '100%', minHeight: 60 }} />;
 }
