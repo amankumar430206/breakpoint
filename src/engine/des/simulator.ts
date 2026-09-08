@@ -4,7 +4,7 @@ import { mulberry32, type Rng } from '../rng';
 import { arrivalRate, maxArrivalRate } from './scenarios';
 import { Histogram } from './histogram';
 import { MinHeap } from './heap';
-import type { SystemDesign } from '../types';
+import type { BreakerState, SystemDesign } from '../types';
 import type { SimSpec } from '../components/types';
 
 export interface SimNodeMetrics {
@@ -19,7 +19,23 @@ export interface SimNodeMetrics {
   latency: { mean: number; p50: number; p95: number; p99: number };
   overloaded: boolean;
   backlogGrowth: number;
+  breakerState?: BreakerState;
 }
+
+interface BreakerRuntime {
+  state: BreakerState;
+  openedAt: number;
+  /** When the breaker last (re-)closed — a full windowSec must pass before it
+   *  can trip again, so a recovered dependency gets a real observation period. */
+  closedSince: number;
+  winStart: number;
+  winTotal: number;
+  winFail: number;
+  probesOk: number;
+  probesInFlight: number;
+}
+
+const BREAKER_MIN_SAMPLES = 20;
 
 export interface SimSnapshot {
   simTime: number;
@@ -70,6 +86,7 @@ interface SimNode {
   busyArea: number;
   queueArea: number;
   lastChange: number;
+  brk?: BreakerRuntime;
 }
 
 export class Simulator {
@@ -144,6 +161,18 @@ export class Simulator {
         busyArea: 0,
         queueArea: 0,
         lastChange: 0,
+        brk: spec.breaker
+          ? {
+              state: 'closed',
+              openedAt: -Infinity,
+              closedSince: 0,
+              winStart: 0,
+              winTotal: 0,
+              winFail: 0,
+              probesOk: 0,
+              probesInFlight: 0,
+            }
+          : undefined,
       });
       if (n.type === 'client') this.clients.push(n.id);
       for (const e of this.g.outEdges.get(n.id) ?? []) {
@@ -301,6 +330,37 @@ export class Simulator {
   }
 
   private routeDownstream(node: SimNode, req: Req, at: number): void {
+    // Circuit breaker: gate the request through the state machine before it can
+    // reach anything downstream.
+    if (node.brk && node.spec.breaker) {
+      const b = node.brk;
+      const spec = node.spec.breaker;
+      if (this.now - b.winStart >= spec.windowSec) {
+        b.winStart = this.now;
+        b.winTotal = 0;
+        b.winFail = 0;
+      }
+      if (b.state === 'open') {
+        if (this.now >= b.openedAt + spec.cooldownSec) {
+          b.state = 'half-open';
+          b.probesOk = 0;
+          b.probesInFlight = 0;
+        } else {
+          return this.breakerFastFail(node, req);
+        }
+      }
+      if (b.state === 'half-open' && b.probesInFlight >= spec.halfOpenProbes) {
+        return this.breakerFastFail(node, req);
+      }
+      const isProbe = b.state === 'half-open';
+      if (isProbe) b.probesInFlight += 1;
+      const downstream = req.onResolve;
+      req.onResolve = (failed, t) => {
+        this.breakerObserve(node, failed, isProbe);
+        downstream(failed, t);
+      };
+    }
+
     // Branch nodes (cache/CDN): short-circuit unless we take the downstream path.
     if (node.routing === 'branch') {
       const cont = this.rng.next() < node.spec.branchProb;
@@ -390,6 +450,48 @@ export class Simulator {
     else this.arrive(targetNode, sub);
   }
 
+  /** OPEN breaker: reject immediately with a bounded fast-fail latency. */
+  private breakerFastFail(node: SimNode, req: Req): void {
+    const spec = node.spec.breaker!;
+    const failed = this.rng.next() < spec.fallbackErrorRate;
+    if (failed) node.errors += 1;
+    this.at(spec.fastFailSec, () => req.onResolve(failed, this.now));
+  }
+
+  /** Fold one downstream outcome into the breaker's window / probe accounting. */
+  private breakerObserve(node: SimNode, failed: boolean, isProbe: boolean): void {
+    const b = node.brk!;
+    const spec = node.spec.breaker!;
+    if (isProbe) {
+      b.probesInFlight = Math.max(0, b.probesInFlight - 1);
+      if (failed) {
+        b.state = 'open';
+        b.openedAt = this.now;
+      } else if (++b.probesOk >= spec.halfOpenProbes) {
+        b.state = 'closed';
+        b.closedSince = this.now;
+        b.winStart = this.now;
+        b.winTotal = 0;
+        b.winFail = 0;
+      }
+      return;
+    }
+    b.winTotal += 1;
+    if (failed) b.winFail += 1;
+    // A freshly-closed breaker observes for a full windowSec before it may trip
+    // again — otherwise a still-bad dependency would re-trip it within
+    // milliseconds and the cooldown/window duty cycle would never appear.
+    if (
+      b.state === 'closed' &&
+      this.now - b.closedSince >= spec.windowSec &&
+      b.winTotal >= BREAKER_MIN_SAMPLES &&
+      b.winFail / b.winTotal >= spec.thresholdFrac
+    ) {
+      b.state = 'open';
+      b.openedAt = this.now;
+    }
+  }
+
   private pickWeighted(outs: SimNode['out']): SimNode['out'][number] {
     const total = outs.reduce((s, o) => s + o.weight, 0) || outs.length;
     let r = this.rng.next() * total;
@@ -432,6 +534,7 @@ export class Simulator {
         },
         overloaded: rho >= 0.98 || backlog > 5000,
         backlogGrowth: backlog > 5000 ? Math.max(0, offered - served) : 0,
+        breakerState: n.brk?.state,
       };
 
       n.arrivals = n.completions = n.drops = n.errors = 0;

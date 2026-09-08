@@ -28,7 +28,6 @@ const nodeTypes: NodeTypes = {
   objectStore: ComponentNode,
   externalService: ComponentNode,
   circuitBreaker: ComponentNode,
-  shardRouter: ComponentNode,
 };
 
 const edgeTypes: EdgeTypes = { flow: FlowEdge };

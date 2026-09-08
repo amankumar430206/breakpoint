@@ -10,6 +10,7 @@ import { queueModel } from './components/queue';
 import { workerModel } from './components/worker';
 import { objectStoreModel } from './components/objectStore';
 import { externalServiceModel } from './components/externalService';
+import { circuitBreakerModel } from './components/circuitBreaker';
 
 const MODELS: Record<string, ComponentModel> = {};
 for (const m of [
@@ -23,6 +24,7 @@ for (const m of [
   workerModel,
   objectStoreModel,
   externalServiceModel,
+  circuitBreakerModel,
 ]) {
   MODELS[m.type] = m;
 }

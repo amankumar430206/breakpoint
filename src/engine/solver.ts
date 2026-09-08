@@ -168,7 +168,10 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
     g,
     order,
     entryRate,
-    outflowFraction: (id) => getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!),
+    outflowFraction: (id) =>
+      getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!, {
+        downstreamFailure: downstreamFailure(g, id, metrics),
+      }),
     routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
     attemptFailure: (e) =>
       combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),
@@ -202,7 +205,10 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
       g,
       order,
       entryRate,
-      outflowFraction: (id) => getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!),
+      outflowFraction: (id) =>
+      getModel(g.byId.get(id)!.type).outflowFraction(params.get(id)!, {
+        downstreamFailure: downstreamFailure(g, id, metrics),
+      }),
       routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
       attemptFailure: (e) =>
       combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),

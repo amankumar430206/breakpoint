@@ -18,8 +18,7 @@ export type ComponentType =
   | 'cdn'
   | 'objectStore'
   | 'externalService'
-  | 'circuitBreaker'
-  | 'shardRouter';
+  | 'circuitBreaker';
 
 export interface Vec2 {
   x: number;
@@ -143,7 +142,12 @@ export interface NodeMetrics {
   backlogGrowth: number;
   /** Per-instance breakdown for composite components (DB replicas, shards). */
   members?: MemberMetrics[];
+  /** Steady-state / live state of a circuit breaker node (only that type sets it). */
+  breakerState?: BreakerState;
 }
+
+/** Circuit-breaker lifecycle state. */
+export type BreakerState = 'closed' | 'open' | 'half-open';
 
 /** One instance inside a composite component (a DB replica, a shard, …). */
 export interface MemberMetrics {

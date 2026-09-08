@@ -94,12 +94,6 @@ const ComponentIconInner = ({ type, size = 18 }: { type: ComponentType; size?: n
           <path d="M3 10h4l2-4 3 8 2-4h3" />
         </svg>
       );
-    case 'shardRouter':
-      return (
-        <svg {...p}>
-          <path d="M10 3v14M3 7l7 3 7-3M3 13l7 3 7-3" />
-        </svg>
-      );
     default:
       return (
         <svg {...p}>

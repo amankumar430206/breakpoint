@@ -1,5 +1,14 @@
 import type { ZodType } from 'zod';
-import type { ComponentType, EdgeSpec, ExplainNote, NodeMetrics, NodeSpec } from '../types';
+import type {
+  BreakerState,
+  ComponentType,
+  EdgeSpec,
+  ExplainNote,
+  NodeMetrics,
+  NodeSpec,
+} from '../types';
+
+export type { BreakerState };
 
 /** How a component distributes its inflow across outgoing edges. */
 export type RoutingMode =
@@ -35,6 +44,24 @@ export interface SimSpec {
   errorRate: number;
   /** Probability a served request continues downstream (vs. short-circuits). */
   branchProb: number;
+  /** Present only on a circuit-breaker node — makes the DES run the state machine. */
+  breaker?: BreakerSpec;
+}
+
+/** Circuit-breaker configuration the DES needs to run its state machine. */
+export interface BreakerSpec {
+  /** Downstream error fraction (over the window) that trips the breaker open. */
+  thresholdFrac: number;
+  /** Rolling observation window, seconds. */
+  windowSec: number;
+  /** Time spent OPEN (fast-failing everything) before a half-open probe. */
+  cooldownSec: number;
+  /** Consecutive successful probes needed to re-close from half-open. */
+  halfOpenProbes: number;
+  /** Error probability of a fast-fail response while OPEN (1 = always errors). */
+  fallbackErrorRate: number;
+  /** Latency of a fast-fail response, seconds. */
+  fastFailSec: number;
 }
 
 export type ComponentCategory =
@@ -109,9 +136,14 @@ export interface ComponentModel {
   /**
    * Fraction of inflow (0..1) that continues to downstream edges. 1 for
    * passthrough/replicate, `1 − hitRatio` for a cache, `1 − offload` for a CDN,
-   * 0 for a sink. Called by the flow solver.
+   * 0 for a sink. Called by the flow solver. `ctx.downstreamFailure` is the
+   * current end-to-end failure estimate for everything past this node — a
+   * circuit breaker uses it to compute how often it is OPEN and shielding.
    */
-  outflowFraction(params: Record<string, unknown>): number;
+  outflowFraction(
+    params: Record<string, unknown>,
+    ctx?: { downstreamFailure: number },
+  ): number;
 
   /** Steady-state analytical solve for one node. */
   solve(ctx: SolveNodeCtx): { metrics: NodeMetrics; explain: ExplainNote[] };

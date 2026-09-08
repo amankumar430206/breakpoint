@@ -287,4 +287,52 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
     expect(rel(s.latency.p50, a.latency.p50)).toBeLessThan(0.35);
   });
+
+  it('circuit breaker: trips OPEN and shields the dependency in both engines', () => {
+    // DB errors intrinsically at 70% — above the breaker's 50% trip threshold.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', {
+          serviceTimeMs: 0.5,
+          concurrency: 128,
+          replicas: 1,
+          intrinsicErrorRate: 0,
+        }),
+        node('cb', 'circuitBreaker', {
+          errorThresholdPct: 50,
+          windowSec: 10,
+          cooldownSec: 30,
+          fastFailMs: 1,
+        }),
+        node('db', 'sqlDatabase', {
+          architecture: 'single',
+          queryTimeMs: 1,
+          poolSize: 200,
+          intrinsicErrorRate: 0.7,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'cb'), edge('e3', 'cb', 'db')],
+      400,
+    );
+    const sim = measure(d, 300, 2400);
+    const a = solve(d);
+
+    // both engines settle with the breaker OPEN against the failing dependency
+    expect(a.perNode.cb.metrics.breakerState).toBe('open');
+    expect(sim.perNode.cb.breakerState).toBe('open');
+
+    // both shield the dependency hard — it sees only a small slice of the load.
+    // (The exact open↔probe↔close duty cycle is a chaotic process, so the two
+    // engines agree on "mostly open", not to the last percent.)
+    const aOpen = 1 - a.perNode.db.metrics.arrivalRate / 400;
+    const sOpen = 1 - sim.perNode.db.arrivalRate / 400;
+    expect(aOpen).toBeGreaterThan(0.85);
+    expect(sOpen).toBeGreaterThan(0.85);
+    expect(Math.abs(aOpen - sOpen)).toBeLessThan(0.15);
+
+    // end-to-end success collapses to the fast-fail floor in both engines
+    expect(a.system.successRate).toBeLessThan(0.12);
+    expect(sim.system.successRate).toBeLessThan(0.12);
+  });
 });

@@ -75,6 +75,7 @@ function fromSim(s: SimNodeMetrics): NodeMetrics {
     stable: !s.overloaded,
     overloaded: s.overloaded,
     backlogGrowth: s.backlogGrowth,
+    breakerState: s.breakerState,
   };
 }
 
@@ -95,6 +96,7 @@ function sameNodeMetrics(a: NodeMetrics, b: NodeMetrics): boolean {
     a.servers === b.servers &&
     a.overloaded === b.overloaded &&
     a.stable === b.stable &&
+    a.breakerState === b.breakerState &&
     Object.is(q(a.rho, 1e-3), q(b.rho, 1e-3)) &&
     Object.is(q(a.arrivalRate, 1e-2), q(b.arrivalRate, 1e-2)) &&
     Object.is(q(a.throughput, 1e-2), q(b.throughput, 1e-2)) &&

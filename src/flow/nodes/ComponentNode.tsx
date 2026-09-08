@@ -242,7 +242,9 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
               +db
             </span>
           ) : null}
-          {isExternal ? (
+          {t === 'circuitBreaker' ? (
+            <BreakerPill state={m?.breakerState} />
+          ) : isExternal ? (
             <span
               className="ml-auto rounded px-1 text-[9px] font-medium uppercase tracking-wide"
               style={{ background: 'rgba(163,113,247,0.16)', color: EXTERNAL_ACCENT }}
@@ -423,6 +425,26 @@ const ColocatedDb = memo(function ColocatedDb({
       </div>
       <div className="mt-0.5 text-[9px] text-[var(--tm-text-faint)]">{buf} GB buffer pool</div>
     </div>
+  );
+});
+
+const BREAKER_PILL: Record<string, { bg: string; fg: string }> = {
+  closed: { bg: 'var(--tm-good-bg)', fg: 'var(--tm-good-fg)' },
+  'half-open': { bg: 'var(--tm-warn-bg)', fg: 'var(--tm-warn-fg)' },
+  open: { bg: 'var(--tm-crit-bg)', fg: 'var(--tm-crit-fg)' },
+};
+
+const BreakerPill = memo(function BreakerPill({ state }: { state?: string }) {
+  const s = state ?? 'closed';
+  const c = BREAKER_PILL[s] ?? BREAKER_PILL.closed;
+  return (
+    <span
+      className="ml-auto rounded px-1 text-[9px] font-semibold uppercase tracking-wide"
+      style={{ background: c.bg, color: c.fg }}
+      title={`Circuit breaker is ${s.toUpperCase()}`}
+    >
+      {s}
+    </span>
   );
 });
 
