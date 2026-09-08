@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+coverage
+.vite
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+yarn.lock
