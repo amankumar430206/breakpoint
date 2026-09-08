@@ -55,6 +55,7 @@ interface SimNode {
     backoff: number;
     calls: number;
     timeoutSec: number;
+    netSec: number;
   }[];
   routing: 'passthrough' | 'replicate' | 'branch' | 'sink';
   busy: number;
@@ -125,6 +126,7 @@ export class Simulator {
         backoff: Math.max(0, e.params.backoffSec ?? 0),
         calls: Math.max(0, e.params.callsPerRequest ?? 1),
         timeoutSec: Math.max(0, e.params.timeoutSec ?? 0),
+        netSec: Math.max(0, e.params.netLatencyMs ?? 0) / 1000,
       }));
       this.nodes.set(n.id, {
         id: n.id,
@@ -383,7 +385,9 @@ export class Simulator {
       });
     }
 
-    this.arrive(targetNode, sub);
+    // Fixed network hop before the request reaches the downstream station.
+    if (tgt.netSec > 0) this.at(tgt.netSec, () => this.arrive(targetNode, sub));
+    else this.arrive(targetNode, sub);
   }
 
   private pickWeighted(outs: SimNode['out']): SimNode['out'][number] {

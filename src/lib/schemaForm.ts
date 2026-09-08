@@ -97,6 +97,7 @@ export const FIELD_PRESETS: Record<string, number[]> = {
   opLatencyMs: [1, 5, 10, 25, 50, 100],
   jitterMs: [10, 25, 50, 100, 250],
   // edges
+  netLatencyMs: [0, 1, 2, 5, 10, 40, 80, 150],
   timeoutSec: [0.1, 0.5, 1, 2, 5, 10, 30],
   backoffSec: [0, 0.1, 0.5, 1, 2, 5],
   callsPerRequest: [1, 2, 3, 5, 10],

@@ -23,6 +23,20 @@ import { bool, idleMetrics, num, str, type ComponentModel } from './types';
 
 const K_OF = (pool: number, queueLimit: number) => pool + queueLimit;
 
+/** Shift every latency quantile of a queue result by a constant (seconds). */
+function addLatency(m: NodeMetrics, secs: number): NodeMetrics {
+  if (secs <= 0) return m;
+  return {
+    ...m,
+    latency: {
+      mean: m.latency.mean + secs,
+      p50: m.latency.p50 + secs,
+      p95: m.latency.p95 + secs,
+      p99: m.latency.p99 + secs,
+    },
+  };
+}
+
 function zipfWeights(n: number): number[] {
   let h = 0;
   for (let k = 1; k <= n; k++) h += 1 / k;
@@ -80,7 +94,8 @@ export const sqlDatabaseModel: ComponentModel = {
     readReplicas: 'Async read replicas (primary-replica). Reads spread across them.',
     primaries: 'Primary nodes that all accept reads + writes (multi-primary).',
     shards: 'Independent shards partitioning the keyspace (sharded).',
-    replicationLagMs: 'How far replicas trail the primary — reads there can be stale.',
+    replicationLagMs:
+      'How far replicas trail the primary. Adds latency to replica reads in proportion to the write mix (read-your-writes wait).',
     writeCoordinationPct: 'Extra write cost per additional primary (cross-node certification).',
     crossShardPct: 'Share of queries that fan out to every shard (scatter-gather).',
     keyDistribution: 'uniform = even shards; zipfian = one hot shard.',
@@ -133,11 +148,18 @@ export const sqlDatabaseModel: ComponentModel = {
           : a === 'sharded'
             ? Math.max(1, Math.round(num(params, 'shards', 4)))
             : 1;
+    // Blended read-your-writes staleness wait: the analytical model charges
+    // lag·(1−readRatio)·½ to replica-served reads; here that is spread across the
+    // whole station's traffic (reads on replicas ≈ readRatio of it).
+    const replicas = a === 'primary-replica' ? Math.max(0, Math.round(num(params, 'readReplicas', 0))) : 0;
+    const rr = num(params, 'readRatio', 0.8);
+    const stalePenaltySec =
+      replicas > 0 ? (num(params, 'replicationLagMs', 50) / 1000) * (1 - rr) * 0.5 * rr : 0;
     return {
       servers: pool * instances,
       serviceRate: mu,
       queueCap: bool(params, 'loadShedding', true) ? queueLimit * instances : Infinity,
-      fixedLatencySec: 0,
+      fixedLatencySec: stalePenaltySec,
       errorRate: num(params, 'intrinsicErrorRate', 0.0005),
       branchProb: 0,
     };
@@ -199,7 +221,12 @@ export const sqlDatabaseModel: ComponentModel = {
       }
 
       const per = reads / replicas;
-      const replicaM = instance(per);
+      // Replication lag only bites when a read closely follows a write to the
+      // same key (read-your-writes); the write fraction is a workload proxy for
+      // how often that happens, and the expected wait is ~half the lag window.
+      const lagSec = num(params, 'replicationLagMs', 50) / 1000;
+      const stalePenaltySec = lagSec * (1 - readRatio) * 0.5;
+      const replicaM = addLatency(instance(per), stalePenaltySec);
       const parts = [
         { label: 'primary', role: 'primary' as const, offered: primaryLambda, m: primary },
         ...Array.from({ length: replicas }, (_, i) => ({
@@ -215,8 +242,11 @@ export const sqlDatabaseModel: ComponentModel = {
         formula: 'ρ_replica = (λ · readRatio / replicas) / (poolSize · μ)',
       });
       explain.push({
-        metric: 'errorRate',
-        text: `Replicas trail the primary by ~${num(params, 'replicationLagMs', 50)} ms — reads there can be that stale.`,
+        metric: 'latency',
+        text:
+          stalePenaltySec > 0
+            ? `Replicas trail the primary by ~${num(params, 'replicationLagMs', 50)} ms. With ${((1 - readRatio) * 100).toFixed(0)}% writes, read-your-writes adds ~${(stalePenaltySec * 1000).toFixed(0)} ms to replica reads.`
+            : `Replicas trail the primary by ~${num(params, 'replicationLagMs', 50)} ms, but this pure-read workload never reads its own recent writes — no staleness penalty.`,
       });
       return { metrics: blendMembers(parts), explain };
     }

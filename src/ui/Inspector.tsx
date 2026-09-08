@@ -431,6 +431,7 @@ function EdgeInspector({
     { key: 'retries', kind: 'number', min: 0, max: 8, int: true, default: 0 },
     { key: 'timeoutSec', kind: 'number', min: 0, max: 30, default: 0 },
     { key: 'backoffSec', kind: 'number', min: 0, max: 10, default: 0 },
+    { key: 'netLatencyMs', kind: 'number', min: 0, max: 300, default: 0 },
     { key: 'callsPerRequest', kind: 'number', min: 0, max: 20, default: 1 },
   ];
   const docs: Record<string, string> = {
@@ -438,6 +439,7 @@ function EdgeInspector({
     retries: 'Extra attempts on failure — watch the retry-storm amplification.',
     timeoutSec: 'Per-attempt timeout (0 = none).',
     backoffSec: 'Base delay between retries.',
+    netLatencyMs: 'Fixed network latency for this hop (0 = same box / same rack).',
     callsPerRequest: 'Downstream calls per upstream request (fan-out).',
   };
 

@@ -223,4 +223,35 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(rel(sim.perEdge.e2.timeoutRate, a.perEdge.e2.timeoutRate)).toBeLessThan(0.2);
     expect(rel(sim.system.successRate, a.system.successRate)).toBeLessThan(0.15);
   });
+
+  it('per-edge network latency adds a fixed hop delay to end-to-end p99', () => {
+    const mk = (netLatencyMs: number) =>
+      design(
+        [
+          node('c', 'client'),
+          node('s', 'apiServer', {
+            serviceTimeMs: 2,
+            concurrency: 64,
+            replicas: 1,
+            intrinsicErrorRate: 0,
+          }),
+          node('db', 'sqlDatabase', { queryTimeMs: 2, poolSize: 64, intrinsicErrorRate: 0 }),
+        ],
+        [edge('e1', 'c', 's'), edge('e2', 's', 'db', { netLatencyMs })],
+        200,
+      );
+    const near = measure(mk(0), 60, 300);
+    const far = measure(mk(40), 60, 300);
+    const aNear = solve(mk(0));
+    const aFar = solve(mk(40));
+
+    // analytical: the 40 ms hop shows up once on the critical path
+    expect((aFar.system.latency.p99 - aNear.system.latency.p99) * 1000).toBeCloseTo(40, 0);
+    expect(aFar.perEdge.e2.netLatencySec).toBeCloseTo(0.04, 6);
+
+    // DES agrees within a few ms of jitter
+    const desDelta = (far.system.latency.p99 - near.system.latency.p99) * 1000;
+    expect(desDelta).toBeGreaterThan(30);
+    expect(desDelta).toBeLessThan(55);
+  });
 });

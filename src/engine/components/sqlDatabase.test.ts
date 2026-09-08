@@ -65,6 +65,36 @@ describe('sqlDatabase — architectures', () => {
     );
   });
 
+  it('primary-replica: replication lag slows replica reads in proportion to the write mix', () => {
+    const base = {
+      architecture: 'primary-replica',
+      queryTimeMs: 4,
+      poolSize: 40,
+      readReplicas: 3,
+    };
+    // low load so latency is dominated by service time + lag, not queueing
+    const noLag = solve({ ...base, readRatio: 0.7, replicationLagMs: 0 }, 400);
+    const withLag = solve({ ...base, readRatio: 0.7, replicationLagMs: 200 }, 400);
+    const rep = (r: ReturnType<typeof solve>) =>
+      r.metrics.members!.find((x) => x.role === 'read replica')!;
+    const pri = (r: ReturnType<typeof solve>) =>
+      r.metrics.members!.find((x) => x.role === 'primary')!;
+
+    // replica p99 climbs with the lag; the primary is untouched
+    expect(rep(withLag).latencyP99).toBeGreaterThan(rep(noLag).latencyP99 + 0.01);
+    expect(pri(withLag).latencyP99).toBeCloseTo(pri(noLag).latencyP99, 4);
+
+    // pure-read workload never reads its own writes → no penalty
+    const pureRead = solve({ ...base, readRatio: 1, replicationLagMs: 200 }, 400);
+    const pureReadNoLag = solve({ ...base, readRatio: 1, replicationLagMs: 0 }, 400);
+    expect(rep(pureRead).latencyP99).toBeCloseTo(rep(pureReadNoLag).latencyP99, 4);
+
+    // write-heavier mix pays a bigger staleness wait than a read-heavy one
+    const readHeavy = solve({ ...base, readRatio: 0.9, replicationLagMs: 200 }, 400);
+    const writeHeavy = solve({ ...base, readRatio: 0.5, replicationLagMs: 200 }, 400);
+    expect(rep(writeHeavy).latencyP99).toBeGreaterThan(rep(readHeavy).latencyP99);
+  });
+
   it('scaleParam adapts to the architecture', () => {
     const sp = (arch: string) =>
       typeof m.scaleParam === 'function' ? m.scaleParam({ architecture: arch }) : m.scaleParam;

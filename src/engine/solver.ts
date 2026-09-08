@@ -246,7 +246,7 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
     perEdge[e.id] = {
       flow: flow.edgeFlow.get(e.id) ?? 0,
       retryFactor: flow.edgeRetryFactor.get(e.id) ?? 1,
-      netLatencySec: 0,
+      netLatencySec: Math.max(0, e.params.netLatencyMs ?? 0) / 1000,
       timeoutRate: timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec),
     };
   }

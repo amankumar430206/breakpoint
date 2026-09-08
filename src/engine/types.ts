@@ -46,6 +46,8 @@ export interface EdgeParams {
   timeoutSec?: number;
   /** Base backoff between retries, seconds. */
   backoffSec?: number;
+  /** Fixed one-way network latency for this hop, milliseconds (0 = same box). */
+  netLatencyMs?: number;
   /** Calls to the downstream per upstream request (fan-out). */
   callsPerRequest?: number;
 }
