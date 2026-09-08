@@ -35,6 +35,13 @@ export const queueModel: ComponentModel = {
     retentionSec: 'How long unconsumed messages are kept before they age out.',
   },
 
+  presets: [
+    { label: '10k', hint: 'Single broker / light SQS use', patch: { brokerThroughputRps: 10000 } },
+    { label: '50k', hint: '3-broker Kafka cluster', patch: { brokerThroughputRps: 50000 } },
+    { label: '200k', hint: 'Tuned Kafka / Kinesis with many shards', patch: { brokerThroughputRps: 200000 } },
+    { label: '1M', hint: 'Large managed stream', patch: { brokerThroughputRps: 1000000 } },
+  ],
+
   outflowFraction: () => 1,
 
   simSpec: (params) => ({

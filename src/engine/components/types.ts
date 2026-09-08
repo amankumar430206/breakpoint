@@ -63,6 +63,17 @@ export interface ScaleParam {
   step?: number;
 }
 
+/** A named bundle of param values — e.g. a standard cloud instance shape.
+ *  Rendered as a quick-pick chip row above the fields in the Inspector. */
+export interface ParamPreset {
+  /** Short chip label, e.g. "2·8". */
+  label: string;
+  /** Longer hint for the tooltip, e.g. "m5.large — 2 vCPU / 8 GB". */
+  hint?: string;
+  /** Params merged onto the node when picked. */
+  patch: Record<string, unknown>;
+}
+
 /** Resolve the effective scale knob for a node given its current params. */
 export function resolveScaleParam(
   model: ComponentModel,
@@ -88,6 +99,9 @@ export interface ComponentModel {
   /** Optionally hide a param in the Inspector based on the current params
    *  (e.g. architecture-specific knobs on the database). */
   fieldVisible?: (key: string, params: Record<string, unknown>) => boolean;
+  /** Standard param bundles (e.g. cloud instance shapes) shown as quick-pick
+   *  chips above the sliders, alongside the fine-tuning ranges. */
+  presets?: ParamPreset[];
 
   /**
    * Fraction of inflow (0..1) that continues to downstream edges. 1 for

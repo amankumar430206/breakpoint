@@ -97,6 +97,16 @@ export const sqlDatabaseModel: ComponentModel = {
         return undefined;
     }
   },
+  // Managed DB instance classes — the connection pool scales with the box, and a
+  // memory-optimized class also serves reads a little faster from a bigger cache.
+  presets: [
+    { label: '40', hint: 'db.t3.medium — 2 vCPU / 4 GB (~40 connections)', patch: { poolSize: 40 } },
+    { label: '90', hint: 'db.m5.large — 2 vCPU / 8 GB (~90)', patch: { poolSize: 90 } },
+    { label: '180', hint: 'db.m5.xlarge — 4 vCPU / 16 GB (~180)', patch: { poolSize: 180 } },
+    { label: '180+', hint: 'db.r5.xlarge — mem-optimized, 4 vCPU / 32 GB (faster reads)', patch: { poolSize: 180, queryTimeMs: 5 } },
+    { label: '350', hint: 'db.m5.2xlarge — 8 vCPU / 32 GB (~350)', patch: { poolSize: 350 } },
+    { label: '700', hint: 'db.m5.4xlarge — 16 vCPU / 64 GB (~700)', patch: { poolSize: 700 } },
+  ],
   fieldVisible: (key, params) => {
     const a = str(params, 'architecture', 'primary-replica');
     if (key === 'readReplicas') return a === 'primary-replica';

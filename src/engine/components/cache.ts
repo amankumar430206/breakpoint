@@ -36,6 +36,13 @@ export const cacheModel: ComponentModel = {
     intrinsicErrorRate: 'Baseline cache error/unavailability rate.',
   },
 
+  presets: [
+    { label: '50k', hint: 'cache.t3.medium — small Redis / Memcached node', patch: { capacityRps: 50000 } },
+    { label: '120k', hint: 'cache.m6g.large', patch: { capacityRps: 120000 } },
+    { label: '250k', hint: 'cache.m6g.xlarge', patch: { capacityRps: 250000 } },
+    { label: '600k', hint: 'cache.r6g.2xlarge / clustered', patch: { capacityRps: 600000 } },
+  ],
+
   outflowFraction: (params) => 1 - num(params, 'hitRatio', 0.8),
 
   simSpec: (params) => ({

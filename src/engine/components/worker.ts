@@ -52,6 +52,15 @@ export const workerModel: ComponentModel = {
   },
   scaleParam: { key: 'replicas', label: 'workers', min: 1, max: 64 },
 
+  presets: [
+    { label: '2·4', hint: 'Medium — 2 vCPU / 4 GB (t3.medium)', patch: { vcpus: 2, ramGB: 4 } },
+    { label: '2·8', hint: 'General large — 2 vCPU / 8 GB (m5.large)', patch: { vcpus: 2, ramGB: 8 } },
+    { label: '4·8', hint: 'Compute — 4 vCPU / 8 GB (c6i.xlarge)', patch: { vcpus: 4, ramGB: 8 } },
+    { label: '4·16', hint: 'General xlarge — 4 vCPU / 16 GB (m5.xlarge)', patch: { vcpus: 4, ramGB: 16 } },
+    { label: '8·32', hint: 'General 2xlarge — 8 vCPU / 32 GB (m5.2xlarge)', patch: { vcpus: 8, ramGB: 32 } },
+    { label: '16·64', hint: '4xlarge — 16 vCPU / 64 GB (m5.4xlarge)', patch: { vcpus: 16, ramGB: 64 } },
+  ],
+
   outflowFraction: () => 1,
 
   simSpec: (params) => {

@@ -123,6 +123,18 @@ export const apiServerModel: ComponentModel = {
   },
   scaleParam: { key: 'replicas', label: 'replicas', min: 1, max: 32 },
 
+  // Standard cloud instance shapes (vCPU · GB). Names are AWS; the rough
+  // equivalents on GCP / Azure / DigitalOcean have the same shape.
+  presets: [
+    { label: '1·2', hint: 'Small — 1 vCPU / 2 GB (t3.small · e2-small · s-1vcpu-2gb)', patch: { vcpus: 1, ramGB: 2, storageGB: 20 } },
+    { label: '2·4', hint: 'Medium — 2 vCPU / 4 GB (t3.medium · e2-medium)', patch: { vcpus: 2, ramGB: 4, storageGB: 40 } },
+    { label: '2·8', hint: 'General large — 2 vCPU / 8 GB (m5.large · n2-standard-2)', patch: { vcpus: 2, ramGB: 8, storageGB: 40 } },
+    { label: '4·8', hint: 'Compute — 4 vCPU / 8 GB (c6i.xlarge · c2-standard-4)', patch: { vcpus: 4, ramGB: 8, storageGB: 60 } },
+    { label: '4·16', hint: 'General xlarge — 4 vCPU / 16 GB (m5.xlarge · n2-standard-4)', patch: { vcpus: 4, ramGB: 16, storageGB: 80 } },
+    { label: '8·32', hint: 'General 2xlarge — 8 vCPU / 32 GB (m5.2xlarge)', patch: { vcpus: 8, ramGB: 32, storageGB: 160 } },
+    { label: '16·64', hint: '4xlarge — 16 vCPU / 64 GB (m5.4xlarge)', patch: { vcpus: 16, ramGB: 64, storageGB: 320 } },
+  ],
+
   fieldVisible: (key, params) =>
     key === 'dbQueryMs' || key === 'queriesPerRequest' || key === 'dbBufferGB'
       ? bool(params, 'colocatedDb', false)

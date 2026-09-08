@@ -37,6 +37,14 @@ export const loadBalancerModel: ComponentModel = {
 
   scaleParam: { key: 'instances', label: 'instances', min: 1, max: 16 },
 
+  presets: [
+    { label: '20k', hint: 'Small proxy box — nginx / HAProxy on 1–2 vCPU', patch: { capacityRps: 20000 } },
+    { label: '50k', hint: 'Proxy box — 4 vCPU, tuned', patch: { capacityRps: 50000 } },
+    { label: '100k', hint: 'Large proxy — 8 vCPU HAProxy', patch: { capacityRps: 100000 } },
+    { label: '500k', hint: 'Managed L7 — ALB / Application Gateway (scales out)', patch: { capacityRps: 500000 } },
+    { label: '2M', hint: 'Managed L4 — NLB / connection-based (effectively uncapped)', patch: { capacityRps: 2000000 } },
+  ],
+
   outflowFraction: () => 1,
 
   simSpec: (params) => ({
