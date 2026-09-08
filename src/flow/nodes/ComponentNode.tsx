@@ -2,6 +2,7 @@ import { memo, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { getModel, resolveScaleParam, tierOf, type ComponentType, type MemberMetrics } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
+import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
 import { fmtDuration, fmtPct, fmtRps, HEALTH_COLOR, healthForRho } from '@/lib/format';
 import { ComponentIcon } from '../icons';
@@ -60,6 +61,13 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const flowDir = useDesignStore((s) => s.flowDir);
   const targetPos = flowDir === 'LR' ? Position.Left : Position.Top;
   const sourcePos = flowDir === 'LR' ? Position.Right : Position.Bottom;
+  // Client nodes show the configured load (kept in sync with the scenario bar).
+  // Non-client selectors return '' so those nodes never re-render on load edits.
+  const clientLoad = useSimStore((s) => {
+    if (t !== 'client') return '';
+    const sc = s.scenario;
+    return sc.mode === 'users' ? `${(sc.users ?? 0).toLocaleString()} users` : fmtRps(sc.targetRps);
+  });
 
   const scale = resolveScaleParam(model, d.params);
   const scaleVal = scale ? Math.round(Number(d.params[scale.key] ?? scale.min)) : 0;
@@ -198,6 +206,9 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
 
         {replicaLabel && (
           <div className="px-2.5 pb-1 text-[10px] text-[var(--tm-text-faint)]">{replicaLabel}</div>
+        )}
+        {clientLoad && (
+          <div className="px-2.5 pb-1 text-[10px] text-[var(--tm-text-faint)]">{clientLoad}</div>
         )}
 
         <div className="mx-2.5 h-1 overflow-hidden rounded bg-[var(--tm-border)]">
