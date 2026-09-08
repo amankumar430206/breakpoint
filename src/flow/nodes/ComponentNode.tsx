@@ -124,6 +124,12 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
     [scale, scaleVal, id, updateNodeParams],
   );
 
+  // Is this node flagged by the bottleneck audit? Narrow primitive selector —
+  // re-renders only when *this* node's status changes.
+  const bottleneck = useViewStore(
+    (s) => s.analysis?.bottlenecks.find((b) => b.nodeId === id)?.severity,
+  );
+
   const rho = m?.rho ?? 0;
   const level = healthForRho(rho, m?.overloaded ?? false);
   const health = HEALTH_COLOR[m ? level : 'idle'];
@@ -131,6 +137,12 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const hasOut = model.routing !== 'sink';
   const isExternal = tier === 'external';
   const accent = isExternal ? EXTERNAL_ACCENT : health;
+  const pulse =
+    m?.overloaded || bottleneck === 'critical'
+      ? 'tm-pulse-crit'
+      : bottleneck === 'warning'
+        ? 'tm-pulse-warn'
+        : '';
   // 1 → plain card · 2 → one instance peeking to the right · 3 → three cards
   // fanned side-by-side · 4+ → three + a "+N" strip, all inside a dashed frame.
   const grouped = replicas >= 3;
@@ -200,7 +212,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
       })}
 
       <div
-        className="relative overflow-hidden rounded-lg border text-[var(--tm-text)] shadow-sm transition-colors"
+        className={`relative overflow-hidden rounded-lg border text-[var(--tm-text)] shadow-sm transition-colors ${pulse}`}
         style={{
           width: NODE_W,
           background: isExternal ? 'var(--tm-panel-2)' : 'var(--tm-node)',
