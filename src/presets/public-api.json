@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "Rate-limited public API",
+  "description": "A public JSON API behind a gateway that throttles at a fixed rate. Past the limit the gateway sheds load (429) — the tiers behind it never see the excess.",
+  "notes": "Push traffic well above the gateway's capacity: the API servers and DB stay healthy while success rate collapses at the edge. That's the gateway doing its job. Then raise the gateway limit and watch the load move downstream.",
+  "nodes": [
+    { "id": "clients", "type": "client", "position": { "x": 320, "y": 0 }, "label": "API clients", "params": {} },
+    { "id": "gw", "type": "loadBalancer", "position": { "x": 320, "y": 150 }, "label": "API gateway", "params": { "capacityRps": 2000, "latencyMs": 2, "algorithm": "least-conn" } },
+    { "id": "api", "type": "apiServer", "position": { "x": 320, "y": 300 }, "label": "api-svc", "params": { "serviceTimeMs": 25, "vcpus": 4, "ramGB": 8, "replicas": 3 } },
+    { "id": "cache", "type": "cache", "position": { "x": 120, "y": 450 }, "label": "response cache", "params": { "hitRatio": 0.6, "hitLatencyMs": 1 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 320, "y": 590 }, "label": "Postgres", "params": { "architecture": "primary-replica", "queryTimeMs": 7, "poolSize": 25, "readReplicas": 1, "readRatio": 0.85 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "clients", "target": "gw", "params": {} },
+    { "id": "e2", "source": "gw", "target": "api", "params": {} },
+    { "id": "e3", "source": "api", "target": "cache", "params": {} },
+    { "id": "e4", "source": "cache", "target": "db", "params": { "retries": 1 } }
+  ],
+  "sim": {
+    "scenario": { "kind": "spike", "mode": "users", "targetRps": 1500, "users": 1500, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 6 },
+    "seed": 1,
+    "speed": 4
+  }
+}
