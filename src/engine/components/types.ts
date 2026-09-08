@@ -1,0 +1,141 @@
+import type { ZodType } from 'zod';
+import type { ComponentType, EdgeSpec, ExplainNote, NodeMetrics, NodeSpec } from '../types';
+
+/** How a component distributes its inflow across outgoing edges. */
+export type RoutingMode =
+  | 'passthrough' // 100% continues, split across outgoing edges by weight (LB)
+  | 'replicate' // full inflow sent to every downstream dependency (app server fan-out)
+  | 'branch' // a fraction continues downstream, the rest short-circuits (cache, CDN)
+  | 'sink'; // nothing continues (database, dead-end)
+
+export interface SolveNodeCtx {
+  node: NodeSpec;
+  params: Record<string, unknown>;
+  /** Total offered arrival rate into this node (req/s), post-routing + retries. */
+  inflow: number;
+  /** Failure probability observed on the downstream dependencies (0..1). */
+  downstreamErrorRate: number;
+}
+
+/**
+ * Everything the discrete-event simulator needs to model a node as a single
+ * queueing station. Deriving this from the same params as `solve()` keeps the
+ * analytical and simulated layers structurally identical (see convergence.test).
+ */
+export interface SimSpec {
+  /** Parallel service slots (c). `Infinity` for pass-through / infinite-server. */
+  servers: number;
+  /** Exponential service rate per slot, req/s. `Infinity` for instantaneous. */
+  serviceRate: number;
+  /** Waiting slots beyond `servers`. `Infinity` = unbounded queue (no shedding). */
+  queueCap: number;
+  /** Deterministic latency added to every request through the node (seconds). */
+  fixedLatencySec: number;
+  /** Per-request intrinsic error probability. */
+  errorRate: number;
+  /** Probability a served request continues downstream (vs. short-circuits). */
+  branchProb: number;
+}
+
+export type ComponentCategory =
+  | 'source'
+  | 'compute'
+  | 'data'
+  | 'network'
+  | 'messaging'
+  | 'resilience'
+  | 'external';
+
+/** Visual tier — drives how the node card is drawn. */
+export type ComponentTier = 'primary' | 'infra' | 'external';
+
+export function tierOf(category: ComponentCategory): ComponentTier {
+  if (category === 'external') return 'external';
+  if (category === 'source' || category === 'compute') return 'primary';
+  return 'infra';
+}
+
+export interface ScaleParam {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+}
+
+/** Resolve the effective scale knob for a node given its current params. */
+export function resolveScaleParam(
+  model: ComponentModel,
+  params: Record<string, unknown>,
+): ScaleParam | undefined {
+  return typeof model.scaleParam === 'function' ? model.scaleParam(params) : model.scaleParam;
+}
+
+export interface ComponentModel {
+  type: ComponentType;
+  label: string;
+  category: ComponentCategory;
+  routing: RoutingMode;
+  /** Ports the node exposes on the canvas. */
+  handles: { in: boolean; out: boolean };
+  defaultParams: Record<string, unknown>;
+  paramSchema: ZodType;
+  /** Human-readable one-liner per param, for the Inspector + docs. */
+  paramDocs: Record<string, string>;
+  /** Primary "scale out / in" knob, exposed as a ± stepper on the node itself.
+   *  A function form lets it depend on other params (e.g. DB architecture). */
+  scaleParam?: ScaleParam | ((params: Record<string, unknown>) => ScaleParam | undefined);
+  /** Optionally hide a param in the Inspector based on the current params
+   *  (e.g. architecture-specific knobs on the database). */
+  fieldVisible?: (key: string, params: Record<string, unknown>) => boolean;
+
+  /**
+   * Fraction of inflow (0..1) that continues to downstream edges. 1 for
+   * passthrough/replicate, `1 − hitRatio` for a cache, `1 − offload` for a CDN,
+   * 0 for a sink. Called by the flow solver.
+   */
+  outflowFraction(params: Record<string, unknown>): number;
+
+  /** Steady-state analytical solve for one node. */
+  solve(ctx: SolveNodeCtx): { metrics: NodeMetrics; explain: ExplainNote[] };
+
+  /** Single-station spec for the discrete-event simulator. */
+  simSpec(params: Record<string, unknown>): SimSpec;
+}
+
+/** Narrowing helper for reading numeric params with a fallback. */
+export function num(params: Record<string, unknown>, key: string, fallback: number): number {
+  const v = params[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+
+export function bool(params: Record<string, unknown>, key: string, fallback: boolean): boolean {
+  const v = params[key];
+  return typeof v === 'boolean' ? v : fallback;
+}
+
+export function str(params: Record<string, unknown>, key: string, fallback: string): string {
+  const v = params[key];
+  return typeof v === 'string' ? v : fallback;
+}
+
+/** Build the zero/idle metrics object (used when inflow ≈ 0). */
+export function idleMetrics(servers: number): NodeMetrics {
+  return {
+    arrivalRate: 0,
+    throughput: 0,
+    rho: 0,
+    servers,
+    inSystem: 0,
+    inQueue: 0,
+    latency: { mean: 0, p50: 0, p95: 0, p99: 0 },
+    dropRate: 0,
+    errorRate: 0,
+    stable: true,
+    overloaded: false,
+    backlogGrowth: 0,
+  };
+}
+
+/** Shared edge helpers. */
+export type OutEdge = EdgeSpec;
