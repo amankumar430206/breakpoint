@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -32,6 +32,7 @@ const nodeTypes: NodeTypes = {
 };
 
 const edgeTypes: EdgeTypes = { flow: FlowEdge };
+const DEFAULT_EDGE_OPTIONS = { type: 'flow' };
 
 /**
  * The canvas passes the raw design graph straight to React Flow — no per-frame
@@ -39,7 +40,7 @@ const edgeTypes: EdgeTypes = { flow: FlowEdge };
  * metrics update re-renders only the components whose numbers changed, and the
  * `nodes`/`edges` array identity stays stable while the simulation runs.
  */
-export function Canvas() {
+function CanvasInner() {
   const nodes = useDesignStore((s) => s.nodes);
   const edges = useDesignStore((s) => s.edges);
   const onNodesChange = useDesignStore((s) => s.onNodesChange);
@@ -97,6 +98,27 @@ export function Canvas() {
     [screenToFlowPosition, addNode],
   );
 
+  const onNodeClick = useCallback((_: unknown, n: { id: string }) => selectNode(n.id), [selectNode]);
+  const onEdgeClick = useCallback((_: unknown, e: { id: string }) => selectEdge(e.id), [selectEdge]);
+  const onPaneClick = useCallback(() => selectNode(null), [selectNode]);
+  const onNodeCtx = useCallback(
+    (e: React.MouseEvent, n: { id: string }) => openMenu('node', e, n.id),
+    [openMenu],
+  );
+  const onEdgeCtx = useCallback(
+    (e: React.MouseEvent, ed: { id: string }) => openMenu('edge', e, ed.id),
+    [openMenu],
+  );
+  const onPaneCtx = useCallback(
+    (e: MouseEvent | React.MouseEvent) => openMenu('pane', e as React.MouseEvent),
+    [openMenu],
+  );
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+  const closeMenu = useCallback(() => setMenu(null), []);
+
   return (
     <>
       <ReactFlow
@@ -107,26 +129,25 @@ export function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={(_, n) => selectNode(n.id)}
-        onEdgeClick={(_, e) => selectEdge(e.id)}
-        onPaneClick={() => selectNode(null)}
-        onNodeContextMenu={(e, n) => openMenu('node', e, n.id)}
-        onEdgeContextMenu={(e, ed) => openMenu('edge', e, ed.id)}
-        onPaneContextMenu={(e) => openMenu('pane', e as React.MouseEvent)}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
+        onNodeContextMenu={onNodeCtx}
+        onEdgeContextMenu={onEdgeCtx}
+        onPaneContextMenu={onPaneCtx}
         onDrop={onDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        }}
+        onDragOver={onDragOver}
         fitView
         minZoom={0.2}
         maxZoom={2}
-        defaultEdgeOptions={{ type: 'flow' }}
+        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
       >
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--tm-dot-grid)" />
         <Controls showInteractive={false} />
       </ReactFlow>
-      <ContextMenu menu={menu} onClose={() => setMenu(null)} />
+      {menu && <ContextMenu menu={menu} onClose={closeMenu} />}
     </>
   );
 }
+
+export const Canvas = memo(CanvasInner);

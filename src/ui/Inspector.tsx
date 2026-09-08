@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getModel, type ExplainNote, type NodeMetrics } from '@/engine';
+import { getModel } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
@@ -11,21 +11,16 @@ const USER_PRESETS = [100, 1_000, 10_000, 100_000];
 const RPS_PRESETS = [100, 1_000, 10_000, 50_000];
 
 export function Inspector() {
-  const nodes = useDesignStore((s) => s.nodes);
-  const edges = useDesignStore((s) => s.edges);
-  const selectedNodeId = useDesignStore((s) => s.selectedNodeId);
-  const selectedEdgeId = useDesignStore((s) => s.selectedEdgeId);
+  // Identity-stable selectors: `find` returns the existing node/edge object (or
+  // null), so the Inspector re-renders only on selection change or when the
+  // selected entity itself changes — it leaves the drag / sim-tick paths.
+  const node = useDesignStore((s) => s.nodes.find((n) => n.id === s.selectedNodeId) ?? null);
+  const edge = useDesignStore((s) => s.edges.find((e) => e.id === s.selectedEdgeId) ?? null);
   const updateNodeParams = useDesignStore((s) => s.updateNodeParams);
   const updateNodeLabel = useDesignStore((s) => s.updateNodeLabel);
   const updateEdgeParams = useDesignStore((s) => s.updateEdgeParams);
   const removeNode = useDesignStore((s) => s.removeNode);
-  const perNode = useViewStore((s) => s.perNode);
-  const perEdge = useViewStore((s) => s.perEdge);
-  const explains = useViewStore((s) => s.explains);
   const computing = useViewStore((s) => s.computing);
-
-  const node = nodes.find((n) => n.id === selectedNodeId) ?? null;
-  const edge = edges.find((e) => e.id === selectedEdgeId) ?? null;
 
   // Take up no space when nothing is selected — the canvas gets it back.
   if (!node && !edge) return null;
@@ -55,17 +50,14 @@ export function Inspector() {
           onLabel={(v) => updateNodeLabel(node.id, v)}
           onParam={(patch) => updateNodeParams(node.id, patch)}
           onDelete={() => removeNode(node.id)}
-          metrics={perNode[node.id]}
-          explain={explains[node.id]}
         />
       )}
       {edge && (
         <EdgeInspector
           key={edge.id}
+          edgeId={edge.id}
           params={(edge.data?.params ?? {}) as Record<string, unknown>}
           onParam={(patch) => updateEdgeParams(edge.id, patch)}
-          flow={perEdge[edge.id]?.flow ?? 0}
-          retry={perEdge[edge.id]?.retryFactor ?? 1}
         />
       )}
     </aside>
@@ -73,14 +65,13 @@ export function Inspector() {
 }
 
 function NodeInspector({
+  nodeId,
   type,
   label,
   params,
   onLabel,
   onParam,
   onDelete,
-  metrics,
-  explain,
 }: {
   nodeId: string;
   type: Parameters<typeof getModel>[0];
@@ -89,9 +80,9 @@ function NodeInspector({
   onLabel: (v: string) => void;
   onParam: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
-  metrics?: NodeMetrics;
-  explain?: ExplainNote[];
 }) {
+  const m = useViewStore((s) => s.perNode[nodeId]);
+  const explain = useViewStore((s) => s.explains[nodeId]);
   const model = getModel(type);
   const fields = useMemo(
     () =>
@@ -100,7 +91,6 @@ function NodeInspector({
         .filter((f) => !model.fieldVisible || model.fieldVisible(f.key, params)),
     [model, params],
   );
-  const m = metrics;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -206,12 +196,13 @@ function ClientInspector({
   const setThinkTime = useSimStore((s) => s.setThinkTime);
   const setScenarioKind = useSimStore((s) => s.setScenarioKind);
   const setPeakFactor = useSimStore((s) => s.setPeakFactor);
-  const system = useViewStore((s) => s.system);
+  const offeredRps = useViewStore((s) => s.system.offeredRps);
+  const servedRps = useViewStore((s) => s.system.servedRps);
 
   const usersMode = scenario.mode === 'users';
   const users = scenario.users ?? 0;
   const thinkTime = scenario.thinkTimeSec ?? 1;
-  const effectiveRps = system.offeredRps || users / thinkTime;
+  const effectiveRps = offeredRps || users / thinkTime;
   const varying = scenario.kind === 'wander';
   const swing = scenario.peakFactor ?? 3;
 
@@ -370,7 +361,7 @@ function ClientInspector({
 
       <div className="tabnum grid grid-cols-2 gap-1 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
         <Metric label={usersMode || varying ? '≈ offered' : 'offered'} value={fmtRps(effectiveRps)} />
-        <Metric label="served" value={fmtRps(system.servedRps)} />
+        <Metric label="served" value={fmtRps(servedRps)} />
       </div>
 
       <p className="text-[10px] leading-snug text-[var(--tm-text-faint)]">
@@ -390,16 +381,17 @@ function ClientInspector({
 }
 
 function EdgeInspector({
+  edgeId,
   params,
   onParam,
-  flow,
-  retry,
 }: {
+  edgeId: string;
   params: Record<string, unknown>;
   onParam: (patch: Record<string, unknown>) => void;
-  flow: number;
-  retry: number;
 }) {
+  const em = useViewStore((s) => s.perEdge[edgeId]);
+  const flow = em?.flow ?? 0;
+  const retry = em?.retryFactor ?? 1;
   const fields: FieldDesc[] = [
     { key: 'weight', kind: 'number', min: 0, default: 1 },
     { key: 'retries', kind: 'number', min: 0, max: 8, int: true, default: 0 },
