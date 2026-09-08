@@ -1,0 +1,185 @@
+import { z } from 'zod';
+import { mmc, mmck } from '../queueing';
+import { metricsFromQueue } from './util';
+import { bool, num, type ComponentModel, type SolveNodeCtx } from './types';
+
+/**
+ * Stateless application server, sized the way a cloud provider sells one: pick
+ * vCPUs, RAM and disk. Per-replica request concurrency is *derived*:
+ *
+ *   cpuSlots = vcpus · parallelPerVcpu           (in-flight requests a core juggles)
+ *   memSlots = floor(ramGB · 1024 / memPerReqMB) (working set per in-flight request)
+ *   concurrency = min(cpuSlots, memSlots)        (whichever runs out first)
+ *
+ * so you can watch a box go from CPU-bound to RAM-bound as you change its shape.
+ * The pool is one M/M/c/K queue with c = concurrency · replicas; requests past
+ * c + queueLimit are shed (503) unless load shedding is off.
+ */
+
+export interface ServerSizing {
+  concurrency: number;
+  cpuSlots: number;
+  memSlots: number;
+  bound: 'cpu' | 'ram';
+}
+
+export function deriveConcurrency(params: Record<string, unknown>): ServerSizing {
+  // Explicit `concurrency` (legacy / power users) wins over the resource model.
+  const explicit = params.concurrency;
+  if (typeof explicit === 'number' && explicit > 0) {
+    const c = Math.max(1, Math.round(explicit));
+    return { concurrency: c, cpuSlots: c, memSlots: Infinity, bound: 'cpu' };
+  }
+
+  const vcpus = Math.max(0.25, num(params, 'vcpus', 2));
+  const perVcpu = Math.max(1, num(params, 'parallelPerVcpu', 8));
+  const ramGB = Math.max(0.125, num(params, 'ramGB', 4));
+  const memPerReqMB = Math.max(1, num(params, 'memPerReqMB', 40));
+
+  const cpuSlots = Math.max(1, Math.round(vcpus * perVcpu));
+  const memSlots = Math.max(1, Math.floor((ramGB * 1024) / memPerReqMB));
+  return {
+    concurrency: Math.min(cpuSlots, memSlots),
+    cpuSlots,
+    memSlots,
+    bound: memSlots < cpuSlots ? 'ram' : 'cpu',
+  };
+}
+
+export const apiServerModel: ComponentModel = {
+  type: 'apiServer',
+  label: 'API Server',
+  category: 'compute',
+  routing: 'replicate',
+  handles: { in: true, out: true },
+  defaultParams: {
+    vcpus: 2,
+    ramGB: 4,
+    storageGB: 20,
+    serviceTimeMs: 40,
+    parallelPerVcpu: 8,
+    memPerReqMB: 40,
+    replicas: 1,
+    queueLimit: 200,
+    loadShedding: true,
+    intrinsicErrorRate: 0.001,
+    autoscale: false,
+    targetUtil: 0.7,
+    maxReplicas: 12,
+  },
+  paramSchema: z.object({
+    vcpus: z.number().positive().max(128).default(2),
+    ramGB: z.number().positive().max(1024).default(4),
+    storageGB: z.number().nonnegative().max(16384).default(20),
+    serviceTimeMs: z.number().positive().max(5000).default(40),
+    parallelPerVcpu: z.number().positive().max(64).default(8),
+    memPerReqMB: z.number().positive().max(4096).default(40),
+    concurrency: z.number().int().positive().optional(),
+    replicas: z.number().int().positive().default(1),
+    queueLimit: z.number().int().nonnegative().default(200),
+    loadShedding: z.boolean().default(true),
+    intrinsicErrorRate: z.number().min(0).max(1).default(0.001),
+    autoscale: z.boolean().default(false),
+    targetUtil: z.number().gt(0).lt(1).default(0.7),
+    maxReplicas: z.number().int().positive().default(12),
+  }),
+  paramDocs: {
+    vcpus: 'Virtual CPUs per instance (e.g. t3.small ≈ 2, c6i.xlarge ≈ 4).',
+    ramGB: 'Memory per instance.',
+    storageGB: 'Disk per instance (not a throughput constraint for a stateless tier).',
+    serviceTimeMs: 'Mean CPU time to handle one request (exponential).',
+    parallelPerVcpu: 'In-flight requests one vCPU overlaps (higher = more IO-bound).',
+    memPerReqMB: 'Working-set memory held per in-flight request.',
+    replicas: 'Number of identical instances behind the load balancer.',
+    queueLimit: 'Accept queue depth per pool before requests are shed (503).',
+    loadShedding: 'On: full pool → 503 fast (bounded latency). Off: unbounded queue → latency blows up past capacity.',
+    intrinsicErrorRate: 'Baseline 5xx rate independent of load.',
+    autoscale: 'Add replicas automatically to hold utilization at the target.',
+    targetUtil: 'Utilization the autoscaler aims for.',
+    maxReplicas: 'Upper bound on autoscaled replicas.',
+  },
+  scaleParam: { key: 'replicas', label: 'replicas', min: 1, max: 32 },
+
+  outflowFraction: () => 1,
+
+  simSpec: (params) => {
+    const per = deriveConcurrency(params).concurrency;
+    const c = per * Math.max(1, Math.round(num(params, 'replicas', 1)));
+    return {
+      servers: c,
+      serviceRate: 1000 / num(params, 'serviceTimeMs', 40),
+      queueCap: bool(params, 'loadShedding', true)
+        ? Math.max(0, Math.round(num(params, 'queueLimit', 200)))
+        : Infinity,
+      fixedLatencySec: 0,
+      errorRate: num(params, 'intrinsicErrorRate', 0.001),
+      branchProb: 1,
+    };
+  },
+
+  solve: (ctx: SolveNodeCtx) => {
+    const { params, inflow, downstreamErrorRate } = ctx;
+    const serviceMs = num(params, 'serviceTimeMs', 40);
+    const sizing = deriveConcurrency(params);
+    const concurrency = sizing.concurrency;
+    const mu = 1000 / serviceMs;
+    const intrinsic = num(params, 'intrinsicErrorRate', 0.001);
+    const queueLimit = Math.max(0, Math.round(num(params, 'queueLimit', 200)));
+
+    let replicas = Math.max(1, Math.round(num(params, 'replicas', 1)));
+    let autoscaled = false;
+    if (bool(params, 'autoscale', false)) {
+      const target = num(params, 'targetUtil', 0.7);
+      const maxR = Math.max(1, Math.round(num(params, 'maxReplicas', 12)));
+      const needed = Math.ceil(inflow / (mu * concurrency * target));
+      const picked = Math.min(maxR, Math.max(1, needed));
+      autoscaled = picked !== replicas;
+      replicas = picked;
+    }
+
+    const c = concurrency * replicas;
+    const K = c + queueLimit;
+    const shed = bool(params, 'loadShedding', true);
+    const qr = shed ? mmck(inflow, mu, c, K) : mmc(inflow, mu, c);
+    const metrics = metricsFromQueue(qr, {
+      offered: inflow,
+      capacity: c * mu,
+      servers: c,
+      intrinsicErrorRate: intrinsic,
+      downstreamErrorRate,
+    });
+
+    const explain = [
+      {
+        metric: 'servers',
+        text: `${num(params, 'vcpus', 2)} vCPU × ${num(params, 'parallelPerVcpu', 8)} = ${sizing.cpuSlots} CPU slots; ${num(params, 'ramGB', 4)} GB ÷ ${num(params, 'memPerReqMB', 40)} MB = ${sizing.memSlots} RAM slots ⇒ ${concurrency} concurrent/replica (${sizing.bound}-bound).`,
+        formula: 'concurrency = min(vcpus·parallelPerVcpu, ramGB·1024 / memPerReqMB)',
+        dominantTerm: sizing.bound === 'ram' ? 'RAM per request' : 'vCPU count',
+      },
+      {
+        metric: 'rho',
+        text: `${replicas} replica(s) × ${concurrency} = ${c} slots at ${serviceMs} ms ⇒ capacity ${(c * mu).toFixed(0)} req/s, ρ = ${qr.rho.toFixed(3)}.${autoscaled ? ' (autoscaled)' : ''}`,
+        formula: 'ρ = λ / (concurrency · replicas · μ)',
+      },
+      {
+        metric: 'latency.p99',
+        text:
+          qr.rho >= 1
+            ? `Offered load exceeds capacity — the accept queue never drains; p99 is unbounded and backlog grows ≈ ${metrics.backlogGrowth.toFixed(0)} req/s.`
+            : `Queueing inflates latency by the M/M/c factor 1/(1−ρ) = ${(1 / (1 - qr.rho)).toFixed(2)}×; service floor is ${serviceMs} ms.`,
+        dominantTerm: qr.rho > 0.8 ? '1/(1−ρ) queueing term' : 'service time',
+      },
+      {
+        metric: 'dropRate',
+        text:
+          qr.pBlock > 1e-6
+            ? `${(qr.pBlock * 100).toFixed(1)}% of requests hit a full pool (c+queue = ${K}) and are shed.`
+            : !shed && metrics.overloaded
+              ? `Load shedding is off — the queue is unbounded, so nothing is dropped but latency has no ceiling.`
+              : `Accept queue (depth ${queueLimit}) has headroom — no shedding.`,
+      },
+    ];
+
+    return { metrics, explain };
+  },
+};
