@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "Social feed (fan-out)",
+  "description": "Read-heavy timeline: a feed service backed by a timeline cache and a sharded posts database, plus a write path that fans new posts out through a queue and worker pool.",
+  "notes": "Drop the timeline cache hit ratio and watch the sharded DB. Switch the DB key distribution to zipfian to create a hot shard, then add shards or rebalance the key.",
+  "nodes": [
+    { "id": "users", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Users", "params": {} },
+    { "id": "alb", "type": "loadBalancer", "position": { "x": 320, "y": 140 }, "label": "Envoy", "params": { "capacityRps": 120000 } },
+    { "id": "feed", "type": "apiServer", "position": { "x": 320, "y": 280 }, "label": "feed-svc", "params": { "serviceTimeMs": 8, "vcpus": 8, "ramGB": 16, "replicas": 4 } },
+    { "id": "tl", "type": "cache", "position": { "x": 120, "y": 420 }, "label": "timeline cache", "params": { "hitRatio": 0.9, "hitLatencyMs": 1, "capacityRps": 400000 } },
+    { "id": "posts", "type": "sqlDatabase", "position": { "x": 120, "y": 560 }, "label": "posts (sharded)", "params": { "architecture": "sharded", "shards": 8, "keyDistribution": "uniform", "queryTimeMs": 5, "poolSize": 20, "crossShardPct": 3 } },
+    { "id": "wq", "type": "queue", "position": { "x": 520, "y": 420 }, "label": "post events", "params": { "brokerThroughputRps": 60000, "partitions": 12 } },
+    { "id": "fanout", "type": "worker", "position": { "x": 520, "y": 560 }, "label": "fan-out worker", "params": { "jobTimeMs": 40, "vcpus": 4, "parallelPerVcpu": 6, "replicas": 3 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "users", "target": "alb", "params": {} },
+    { "id": "e2", "source": "alb", "target": "feed", "params": {} },
+    { "id": "e3", "source": "feed", "target": "tl", "params": {} },
+    { "id": "e4", "source": "tl", "target": "posts", "params": { "retries": 1 } },
+    { "id": "e5", "source": "feed", "target": "wq", "params": {} },
+    { "id": "e6", "source": "wq", "target": "fanout", "params": {} },
+    { "id": "e7", "source": "fanout", "target": "tl", "params": {} }
+  ],
+  "sim": {
+    "scenario": { "kind": "diurnal", "mode": "users", "targetRps": 6000, "users": 6000, "thinkTimeSec": 1, "durationSec": 180, "peakFactor": 4 },
+    "seed": 1,
+    "speed": 6
+  }
+}
