@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "URL shortener",
+  "description": "Read-heavy redirect service: CDN-less path through a load balancer, a stateless redirect tier, a Redis look-aside cache, and Postgres with mostly reads.",
+  "notes": "Try raising targetRps until the cache or DB turns red, then drop the cache hitRatio to 0 to see Postgres take the full load.",
+  "nodes": [
+    { "id": "client", "type": "client", "position": { "x": 300, "y": 0 }, "label": "Users", "params": {} },
+    { "id": "lb", "type": "loadBalancer", "position": { "x": 300, "y": 150 }, "label": "ALB", "params": { "latencyMs": 1, "capacityRps": 80000 } },
+    { "id": "api", "type": "apiServer", "position": { "x": 300, "y": 300 }, "label": "redirect-svc", "params": { "serviceTimeMs": 6, "vcpus": 4, "ramGB": 8, "replicas": 3, "intrinsicErrorRate": 0.0005 } },
+    { "id": "cache", "type": "cache", "position": { "x": 300, "y": 470 }, "label": "Redis", "params": { "hitRatio": 0.92, "hitLatencyMs": 1 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 300, "y": 620 }, "label": "Postgres", "params": { "queryTimeMs": 4, "poolSize": 40, "readRatio": 0.95, "readReplicas": 0 } }
+  ],
+  "edges": [
+    { "id": "e_client_lb", "source": "client", "target": "lb", "params": {} },
+    { "id": "e_lb_api", "source": "lb", "target": "api", "params": {} },
+    { "id": "e_api_cache", "source": "api", "target": "cache", "params": { "retries": 1, "timeoutSec": 0.2 } },
+    { "id": "e_cache_db", "source": "cache", "target": "db", "params": { "retries": 2, "timeoutSec": 1 } }
+  ],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 3000, "users": 3000, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 8 },
+    "seed": 1,
+    "speed": 4
+  }
+}
