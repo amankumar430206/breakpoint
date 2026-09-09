@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { MonitorPanel } from './MonitorPanel';
@@ -7,11 +7,24 @@ import { Inspector } from './Inspector';
 type Tab = 'monitor' | 'node';
 
 const OPEN_KEY = 'tm-right-open';
+const W_KEY = 'tm-right-w';
+const W_MIN = 300;
+const W_DEFAULT = 340;
+const maxW = () => Math.max(W_MIN, Math.round(window.innerWidth * 0.6));
+
 const readOpen = () => {
   try {
     return localStorage.getItem(OPEN_KEY) !== '0';
   } catch {
     return true;
+  }
+};
+const readW = () => {
+  try {
+    const v = Number(localStorage.getItem(W_KEY));
+    return Number.isFinite(v) && v >= W_MIN ? Math.min(v, maxW()) : W_DEFAULT;
+  } catch {
+    return W_DEFAULT;
   }
 };
 
@@ -21,6 +34,8 @@ const readOpen = () => {
 function RightPanelInner() {
   const [open, setOpen] = useState(readOpen);
   const [tab, setTab] = useState<Tab>('monitor');
+  const [width, setWidth] = useState(readW);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
 
   const running = useSimStore((s) => s.running);
   const selected = useDesignStore((s) => s.selectedNodeId ?? s.selectedEdgeId);
@@ -34,6 +49,42 @@ function RightPanelInner() {
       /* ignore */
     }
   };
+
+  const onDragMove = useCallback((e: PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    // dragging the handle left widens the panel
+    setWidth(Math.min(maxW(), Math.max(W_MIN, d.startW + (d.startX - e.clientX))));
+  }, []);
+  const onDragEnd = useCallback(() => {
+    dragRef.current = null;
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragEnd);
+    document.body.style.cursor = '';
+  }, [onDragMove]);
+  const startDrag = (e: React.PointerEvent) => {
+    dragRef.current = { startX: e.clientX, startW: width };
+    document.body.style.cursor = 'ew-resize';
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragEnd);
+  };
+  // persist after the width settles
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        localStorage.setItem(W_KEY, String(width));
+      } catch {
+        /* ignore */
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [width]);
+  // keep within bounds if the window shrinks
+  useEffect(() => {
+    const onResize = () => setWidth((w) => Math.min(w, maxW()));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Play → Monitor.
   useEffect(() => {
@@ -73,7 +124,19 @@ function RightPanelInner() {
   }
 
   return (
-    <aside className="flex w-[340px] shrink-0 flex-col border-l border-[var(--tm-border)] bg-[var(--tm-panel)]">
+    <aside
+      className="relative flex shrink-0 flex-col border-l border-[var(--tm-border)] bg-[var(--tm-panel)]"
+      style={{ width }}
+    >
+      {/* drag handle on the left edge — widen / narrow the panel */}
+      <div
+        onPointerDown={startDrag}
+        onDoubleClick={() => setWidth(W_DEFAULT)}
+        title="Drag to resize · double-click to reset"
+        className="group absolute inset-y-0 -left-1 z-10 w-2 cursor-ew-resize"
+      >
+        <div className="mx-auto h-full w-px bg-transparent transition-colors group-hover:bg-[var(--tm-accent)]" />
+      </div>
       <div className="flex items-stretch border-b border-[var(--tm-border)] text-[11px]">
         <TabBtn active={tab === 'monitor'} onClick={() => setTab('monitor')}>
           Monitor
