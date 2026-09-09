@@ -30,11 +30,16 @@ export function Inspector() {
   const removeNode = useDesignStore((s) => s.removeNode);
   const computing = useViewStore((s) => s.computing);
 
-  // Take up no space when nothing is selected — the canvas gets it back.
-  if (!node && !edge) return null;
+  if (!node && !edge) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-6 text-center text-[11px] text-[var(--tm-text-faint)]">
+        Select a component or a connection on the canvas to inspect and tune it.
+      </div>
+    );
+  }
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-l border-[var(--tm-border)] bg-[var(--tm-panel)]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {computing && (
         <div className="flex items-center gap-1.5 border-b border-[var(--tm-border)] bg-[var(--tm-panel-2)] px-3 py-1.5 text-[11px] text-[var(--tm-text-faint)]">
           <Spinner size={11} /> recalculating…
@@ -75,7 +80,7 @@ export function Inspector() {
           onParam={(patch) => updateEdgeParams(edge.id, patch)}
         />
       )}
-    </aside>
+    </div>
   );
 }
 

@@ -5,11 +5,10 @@ import { Canvas } from '@/flow/Canvas';
 import { TopBar } from '@/ui/TopBar';
 import { ScenarioBar } from '@/ui/ScenarioBar';
 import { Palette } from '@/ui/Palette';
-import { Inspector } from '@/ui/Inspector';
+import { RightPanel } from '@/ui/RightPanel';
 import { EmptyState } from '@/ui/EmptyState';
 import { BottleneckPanel } from '@/ui/BottleneckPanel';
 import { ChaosBar } from '@/ui/ChaosBar';
-import { MetricsDrawer } from '@/ui/MetricsDrawer';
 import { AutoSave } from '@/ui/AutoSave';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -91,24 +90,21 @@ export function App() {
         <ScenarioBar />
         <div className="flex min-h-0 flex-1">
           <Palette />
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="relative min-h-0 flex-1">
-              <Canvas />
-              {nodeCount === 0 ? (
-                <EmptyState
-                  onLoaded={setTitle}
-                  onLoadPreset={loadPreset}
-                  onRandomize={randomize}
-                  onOpenProject={openProject}
-                />
-              ) : (
-                <BottleneckPanel />
-              )}
-              {nodeCount > 0 && <ChaosBar />}
-            </div>
-            {nodeCount > 0 && <MetricsDrawer />}
+          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+            <Canvas />
+            {nodeCount === 0 ? (
+              <EmptyState
+                onLoaded={setTitle}
+                onLoadPreset={loadPreset}
+                onRandomize={randomize}
+                onOpenProject={openProject}
+              />
+            ) : (
+              <BottleneckPanel />
+            )}
+            {nodeCount > 0 && <ChaosBar />}
           </main>
-          <Inspector />
+          {nodeCount > 0 && <RightPanel />}
         </div>
       </div>
     </ReactFlowProvider>
