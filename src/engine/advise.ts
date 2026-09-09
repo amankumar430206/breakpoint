@@ -245,6 +245,33 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
     }
   }
 
+  // --- DNS-level failover ------------------------------------------
+  const dnsNode = design.nodes.find((n) => n.type === 'dns');
+  const hasEntryTier = design.nodes.some((n) => n.type === 'loadBalancer' || n.type === 'apiGateway' || n.type === 'cdn');
+  if (hasEntryTier) {
+    if (!dnsNode) {
+      out.push({
+        topic: 'DNS / failover',
+        verdict: 'No DNS / traffic-manager hop — a whole-region outage is a total outage.',
+        why: 'Nothing routes traffic away from an unhealthy origin or region.',
+        useWhen:
+          'Front the entry with a health-checked DNS policy (latency / failover) so a bad region is routed around; lower the TTL for faster failover.',
+        severity: 'info',
+        docHref: `${DOC}#proxies`,
+      });
+    } else if (strOr(dnsNode.params.routingPolicy, 'latency') === 'simple') {
+      out.push({
+        topic: 'DNS / failover',
+        verdict: `${lbl(dnsNode)} uses the "simple" policy — one endpoint, no failover.`,
+        why: 'A simple DNS record points at a single origin; if it is down, so are you.',
+        useWhen:
+          'Switch to a health-checked latency / failover policy across at least two regions.',
+        severity: 'warn',
+        docHref: `${DOC}#proxies`,
+      });
+    }
+  }
+
   // --- Queue backpressure -----------------------------------------
   for (const e of design.edges) {
     const src = adj.byId.get(e.source);

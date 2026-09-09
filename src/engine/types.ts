@@ -30,7 +30,8 @@ export type ComponentType =
   | 'streamProcessor'
   | 'coordination'
   | 'identityProvider'
-  | 'notificationService';
+  | 'notificationService'
+  | 'dns';
 
 export interface Vec2 {
   x: number;

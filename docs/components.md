@@ -13,6 +13,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | --- | --- | --- | --- | --- |
 | `client` | source | replicate | traffic source; load comes from the scenario | *(none — load is on the scenario / client controls)* |
 | `loadBalancer` | network | passthrough | M/M/c, `c = instances`, `μ = capacityRps` | `algorithm`, `capacityRps`, `instances`, `latencyMs` |
+| `dns` | network | passthrough | uncapped M/M/1; adds only the blended uncached-resolution latency; never the bottleneck | `routingPolicy`, `resolveLatencyMs`, `cacheHitRatio`, `ttlSec`, `healthCheckSec`, `capacityRps` |
 | `apiGateway` | network | passthrough | admission gate at `min(instances·capacityRps, rateLimitRps)`; excess → 429 (not queued) | `capacityRps`, `instances`, `authLatencyMs`, `rateLimitRps`, `authErrorRate` |
 | `dbProxy` | network | passthrough | M/M/c/K in front of the DB, `c = backendConns`, `μ = 1/(avgHoldMs·modeFactor)`; caps DB concurrency | `backendConns`, `avgHoldMs`, `poolMode`, `queueDepth`, `proxyLatencyMs` |
 | `apiServer` | compute | replicate | M/M/c/K per replica; `c` from vCPU × parallelism vs RAM ÷ per-req MB | `vcpus`, `ramGB`, `serviceTimeMs`, `parallelPerVcpu`, `memPerReqMB`, `replicas`, `queueLimit`, `autoscale`, `colocatedDb` (+ `dbQueryMs`, `queriesPerRequest`, `dbBufferGB`) |
