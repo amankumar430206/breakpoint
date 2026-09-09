@@ -359,6 +359,35 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('serverless: cold-start latency and concurrency throttling track between engines', () => {
+    // ~30 ms warm + 20% cold at +200 ms ⇒ ~70 ms effective; 300 req/s × 70 ms
+    // ⇒ ~21 concurrent, a hair under the 24 ceiling → a little throttling.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', { serviceTimeMs: 0.5, concurrency: 128, replicas: 1, intrinsicErrorRate: 0 }),
+        node('fn', 'serverlessFn', {
+          execTimeMs: 30,
+          coldStartMs: 200,
+          coldStartRate: 0.2,
+          maxConcurrency: 24,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'fn')],
+      300,
+    );
+    const sim = measure(d, 150, 900);
+    const a = solve(d).perNode.fn.metrics;
+    const s = sim.perNode.fn;
+
+    // effective service time ≈ 70 ms in both engines
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.2);
+    // both throttle a similar slice
+    expect(a.dropRate).toBeGreaterThan(0.03);
+    expect(Math.abs(s.dropRate - a.dropRate)).toBeLessThan(0.08);
+  });
+
   it('DB proxy: pooler utilization and connection-exhaustion drops track between engines', () => {
     // 4 backend conns · (1000/8 ms) = 500 req/s capacity; offer 300 → ρ ≈ 0.6.
     const d = design(

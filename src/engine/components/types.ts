@@ -46,6 +46,9 @@ export interface SimSpec {
   branchProb: number;
   /** Present only on a circuit-breaker node — makes the DES run the state machine. */
   breaker?: BreakerSpec;
+  /** Per-invocation cold-start penalty (serverless): with probability `rate`,
+   *  add `extraSec` to the service time. */
+  coldStart?: { rate: number; extraSec: number };
 }
 
 /** Circuit-breaker configuration the DES needs to run its state machine. */

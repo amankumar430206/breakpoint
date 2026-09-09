@@ -292,8 +292,9 @@ export class Simulator {
   }
 
   private startService(node: SimNode, req: Req): void {
-    const svc =
-      node.spec.serviceRate === Infinity ? 0 : this.rng.exponential(node.spec.serviceRate);
+    let svc = node.spec.serviceRate === Infinity ? 0 : this.rng.exponential(node.spec.serviceRate);
+    const cs = node.spec.coldStart;
+    if (cs && cs.rate > 0 && this.rng.next() < cs.rate) svc += cs.extraSec;
     this.at(svc, () => this.serviceComplete(node, req));
   }
 

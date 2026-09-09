@@ -22,7 +22,8 @@ export type ComponentType =
   | 'apiGateway'
   | 'pubsubTopic'
   | 'dbProxy'
-  | 'cdcConnector';
+  | 'cdcConnector'
+  | 'serverlessFn';
 
 export interface Vec2 {
   x: number;
