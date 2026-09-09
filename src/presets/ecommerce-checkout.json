@@ -1,29 +1,31 @@
 {
   "version": 1,
   "name": "E-commerce checkout",
-  "description": "Checkout flow: CDN in front, a checkout service that reads sessions from Redis, writes orders to Postgres, calls Stripe (rate-limited, uncontrollable), and enqueues fulfilment for a worker pool.",
-  "notes": "Raise traffic until Stripe starts returning 429s — you can't scale it, so the fix is a queue in front or fewer synchronous calls. Then watch the orders DB when you add read replicas.",
+  "description": "Checkout flow: CDN in front, a checkout service that reads sessions from Redis, writes orders to Postgres through a PgBouncer connection pooler, calls Stripe (rate-limited, uncontrollable), and enqueues fulfilment for a worker pool.",
+  "notes": "Raise traffic until Stripe starts returning 429s — you can't scale it, so the fix is a queue in front or fewer synchronous calls. Then delete the PgBouncer pooler and shrink the DB poolSize: connection-exhaustion errors appear as the checkout service and the fulfilment workers both open connections. Put it back and add read replicas.",
   "nodes": [
     { "id": "users", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Shoppers", "params": {} },
     { "id": "cdn", "type": "cdn", "position": { "x": 320, "y": 140 }, "label": "CloudFront", "params": { "offloadRatio": 0.6, "edgeLatencyMs": 12 } },
     { "id": "alb", "type": "loadBalancer", "position": { "x": 320, "y": 280 }, "label": "ALB", "params": { "capacityRps": 60000 } },
     { "id": "checkout", "type": "apiServer", "position": { "x": 320, "y": 420 }, "label": "checkout-svc", "params": { "serviceTimeMs": 35, "vcpus": 4, "ramGB": 8, "replicas": 3 } },
     { "id": "redis", "type": "cache", "position": { "x": 60, "y": 560 }, "label": "Redis (sessions)", "params": { "hitRatio": 0.95, "hitLatencyMs": 1 } },
-    { "id": "orders", "type": "sqlDatabase", "position": { "x": 320, "y": 560 }, "label": "Postgres (orders)", "params": { "architecture": "primary-replica", "queryTimeMs": 9, "poolSize": 30, "readReplicas": 0, "readRatio": 0.7 } },
+    { "id": "pool", "type": "dbProxy", "position": { "x": 320, "y": 560 }, "label": "PgBouncer", "params": { "backendConns": 40, "avgHoldMs": 11, "poolMode": "transaction", "queueDepth": 1000, "proxyLatencyMs": 0.5 } },
+    { "id": "orders", "type": "sqlDatabase", "position": { "x": 320, "y": 700 }, "label": "Postgres (orders)", "params": { "architecture": "primary-replica", "queryTimeMs": 9, "poolSize": 40, "readReplicas": 0, "readRatio": 0.7 } },
     { "id": "stripe", "type": "externalService", "position": { "x": 580, "y": 560 }, "label": "Stripe", "params": { "latencyMs": 240, "jitterMs": 120, "rateLimitRps": 300, "errorRate": 0.008 } },
-    { "id": "fq", "type": "queue", "position": { "x": 320, "y": 700 }, "label": "fulfilment queue", "params": { "brokerThroughputRps": 40000 } },
-    { "id": "fw", "type": "worker", "position": { "x": 320, "y": 840 }, "label": "fulfilment-worker", "params": { "jobTimeMs": 90, "vcpus": 4, "parallelPerVcpu": 4, "replicas": 5 } }
+    { "id": "fq", "type": "queue", "position": { "x": 100, "y": 700 }, "label": "fulfilment queue", "params": { "brokerThroughputRps": 40000 } },
+    { "id": "fw", "type": "worker", "position": { "x": 100, "y": 840 }, "label": "fulfilment-worker", "params": { "jobTimeMs": 90, "vcpus": 4, "parallelPerVcpu": 4, "replicas": 5 } }
   ],
   "edges": [
     { "id": "e1", "source": "users", "target": "cdn", "params": {} },
     { "id": "e2", "source": "cdn", "target": "alb", "params": {} },
     { "id": "e3", "source": "alb", "target": "checkout", "params": {} },
     { "id": "e4", "source": "checkout", "target": "redis", "params": {} },
-    { "id": "e5", "source": "checkout", "target": "orders", "params": { "retries": 1, "timeoutSec": 2 } },
+    { "id": "e5", "source": "checkout", "target": "pool", "params": { "retries": 1, "timeoutSec": 2 } },
     { "id": "e6", "source": "checkout", "target": "stripe", "params": { "retries": 2, "timeoutSec": 3, "backoffSec": 0.5 } },
     { "id": "e7", "source": "checkout", "target": "fq", "params": {} },
     { "id": "e8", "source": "fq", "target": "fw", "params": {} },
-    { "id": "e9", "source": "fw", "target": "orders", "params": {} }
+    { "id": "e9", "source": "fw", "target": "pool", "params": {} },
+    { "id": "e10", "source": "pool", "target": "orders", "params": {} }
   ],
   "sim": {
     "scenario": { "kind": "constant", "mode": "users", "targetRps": 400, "users": 400, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 6 },

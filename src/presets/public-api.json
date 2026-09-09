@@ -1,11 +1,11 @@
 {
   "version": 1,
   "name": "Rate-limited public API",
-  "description": "A public JSON API behind a gateway that throttles at a fixed rate. Past the limit the gateway sheds load (429) — the tiers behind it never see the excess.",
-  "notes": "Push traffic well above the gateway's capacity: the API servers and DB stay healthy while success rate collapses at the edge. That's the gateway doing its job. Then raise the gateway limit and watch the load move downstream.",
+  "description": "A public JSON API behind a real API gateway: it verifies a token on every call (authLatencyMs) and admits at most rateLimitRps. Past the limit the excess comes back 429 — the app tier and DB never see it.",
+  "notes": "Push traffic well above the gateway's rateLimitRps: the API servers and DB stay green while success collapses at the edge — that's the gateway shielding them. Then raise rateLimitRps and watch the load move downstream onto the app tier and Postgres.",
   "nodes": [
     { "id": "clients", "type": "client", "position": { "x": 320, "y": 0 }, "label": "API clients", "params": {} },
-    { "id": "gw", "type": "loadBalancer", "position": { "x": 320, "y": 150 }, "label": "API gateway", "params": { "capacityRps": 2000, "latencyMs": 2, "algorithm": "least-conn" } },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 320, "y": 150 }, "label": "API gateway", "params": { "capacityRps": 30000, "instances": 2, "authLatencyMs": 3, "rateLimitRps": 2000, "authErrorRate": 0.001 } },
     { "id": "api", "type": "apiServer", "position": { "x": 320, "y": 300 }, "label": "api-svc", "params": { "serviceTimeMs": 25, "vcpus": 4, "ramGB": 8, "replicas": 3 } },
     { "id": "cache", "type": "cache", "position": { "x": 120, "y": 450 }, "label": "response cache", "params": { "hitRatio": 0.6, "hitLatencyMs": 1 } },
     { "id": "db", "type": "sqlDatabase", "position": { "x": 320, "y": 590 }, "label": "Postgres", "params": { "architecture": "primary-replica", "queryTimeMs": 7, "poolSize": 25, "readReplicas": 1, "readRatio": 0.85 } }

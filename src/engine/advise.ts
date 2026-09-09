@@ -231,7 +231,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
 
   // --- Reverse proxy in front of the app tier -----------------------
   for (const app of apps) {
-    if (!hasUpstream(adj, app.id, new Set(['loadBalancer', 'cdn']))) {
+    if (!hasUpstream(adj, app.id, new Set(['loadBalancer', 'cdn', 'apiGateway']))) {
       out.push({
         topic: 'Reverse proxy',
         verdict: `${lbl(app)} has no reverse proxy in front of it.`,

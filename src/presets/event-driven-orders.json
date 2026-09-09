@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "name": "Event-driven orders",
+  "description": "An orders API writes to Postgres, and a CDC connector streams every committed order onto a pub/sub topic. Two independent consumer groups read the same stream: a fulfilment worker and an analytics worker — no dual writes, no coupling.",
+  "notes": "This is the change-data-capture + fan-out pattern. Raise the load and watch the analytics worker lag independently of fulfilment. Drop the CDC connector's maxChangeRps below the order rate to see CDC lag grow. Try adding a third consumer group (e.g. a search indexer) off the same topic.",
+  "nodes": [
+    { "id": "client", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Clients", "params": {} },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 320, "y": 140 }, "label": "API Gateway", "params": { "capacityRps": 40000, "instances": 2, "authLatencyMs": 3, "rateLimitRps": 15000 } },
+    { "id": "orders", "type": "apiServer", "position": { "x": 320, "y": 280 }, "label": "order-svc", "params": { "serviceTimeMs": 25, "vcpus": 4, "ramGB": 8, "replicas": 4 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 110, "y": 440 }, "label": "Postgres (orders)", "params": { "architecture": "primary-replica", "engine": "postgres", "queryTimeMs": 8, "poolSize": 60, "readReplicas": 1, "readRatio": 0.4 } },
+    { "id": "cdc", "type": "cdcConnector", "position": { "x": 520, "y": 440 }, "label": "Debezium", "params": { "captureRatio": 1, "lagMs": 400, "maxChangeRps": 50000 } },
+    { "id": "topic", "type": "pubsubTopic", "position": { "x": 520, "y": 580 }, "label": "order-events", "params": { "throughputRps": 80000, "partitions": 12, "consumerGroups": 2 } },
+    { "id": "fulfil", "type": "worker", "position": { "x": 360, "y": 720 }, "label": "fulfilment-worker", "params": { "jobTimeMs": 45, "vcpus": 4, "parallelPerVcpu": 5, "replicas": 8 } },
+    { "id": "analytics", "type": "worker", "position": { "x": 660, "y": 720 }, "label": "analytics-worker", "params": { "jobTimeMs": 30, "vcpus": 4, "parallelPerVcpu": 6, "replicas": 3 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "client", "target": "gw", "params": {} },
+    { "id": "e2", "source": "gw", "target": "orders", "params": {} },
+    { "id": "e3", "source": "orders", "target": "db", "params": { "retries": 1, "timeoutSec": 2 } },
+    { "id": "e4", "source": "orders", "target": "cdc", "params": {} },
+    { "id": "e5", "source": "cdc", "target": "topic", "params": {} },
+    { "id": "e6", "source": "topic", "target": "fulfil", "params": {} },
+    { "id": "e7", "source": "topic", "target": "analytics", "params": {} }
+  ],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 1500, "users": 1500, "thinkTimeSec": 1, "durationSec": 150, "peakFactor": 5 },
+    "seed": 1,
+    "speed": 5
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "Metrics pipeline",
+  "description": "Telemetry ingestion: thousands of agents push metrics through an ingest gateway onto a pub/sub topic. One consumer group aggregates into a Prometheus-style time-series store (hot, queryable); another downsamples to object storage (cold, cheap).",
+  "notes": "The time-series engine makes writes almost free — bump the agent count hard and the Prometheus node barely moves, while a same-sized `postgres`-engine store would fall over. Switch the store's engine to postgres to see the difference. Then drop the topic's throughputRps to watch ingestion back up.",
+  "nodes": [
+    { "id": "agents", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Agents", "params": {} },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 320, "y": 140 }, "label": "ingest gateway", "params": { "capacityRps": 100000, "instances": 3, "authLatencyMs": 1, "rateLimitRps": 50000 } },
+    { "id": "topic", "type": "pubsubTopic", "position": { "x": 320, "y": 280 }, "label": "metrics-stream", "params": { "throughputRps": 250000, "partitions": 24, "consumerGroups": 2 } },
+    { "id": "stream", "type": "worker", "position": { "x": 130, "y": 430 }, "label": "aggregator", "params": { "jobTimeMs": 5, "vcpus": 8, "parallelPerVcpu": 8, "replicas": 4 } },
+    { "id": "tsdb", "type": "sqlDatabase", "position": { "x": 130, "y": 580 }, "label": "Prometheus", "params": { "architecture": "single", "engine": "prometheus", "capacityRps": 200000, "queryTimeMs": 1, "readRatio": 0.1 } },
+    { "id": "downsample", "type": "worker", "position": { "x": 520, "y": 430 }, "label": "downsampler", "params": { "jobTimeMs": 10, "vcpus": 4, "parallelPerVcpu": 6, "replicas": 4 } },
+    { "id": "blobs", "type": "objectStore", "position": { "x": 520, "y": 580 }, "label": "S3 (rollups)", "params": { "opLatencyMs": 25, "opsRps": 500000 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "agents", "target": "gw", "params": {} },
+    { "id": "e2", "source": "gw", "target": "topic", "params": {} },
+    { "id": "e3", "source": "topic", "target": "stream", "params": {} },
+    { "id": "e4", "source": "topic", "target": "downsample", "params": {} },
+    { "id": "e5", "source": "stream", "target": "tsdb", "params": { "timeoutSec": 2 } },
+    { "id": "e6", "source": "downsample", "target": "blobs", "params": { "retries": 2, "timeoutSec": 3 } }
+  ],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 4000, "users": 4000, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 4 },
+    "seed": 1,
+    "speed": 5
+  }
+}

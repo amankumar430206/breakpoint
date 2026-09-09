@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "Multi-tenant SaaS API",
+  "description": "A B2B API: the gateway enforces a per-plan rate limit and auth, a stateless app tier reads sessions from Redis, and a connection pooler fronts a primary + read-replica Postgres so thousands of app connections don't exhaust the database.",
+  "notes": "Take the DB proxy out (wire the app straight to Postgres) and drop the DB poolSize — watch connection-exhaustion errors appear as load climbs. Put it back and they vanish. Then lower the gateway's rateLimitRps to simulate a smaller plan and see 429s at the edge while every tier behind stays green.",
+  "nodes": [
+    { "id": "client", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Tenants", "params": {} },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 320, "y": 140 }, "label": "API Gateway", "params": { "capacityRps": 60000, "instances": 2, "authLatencyMs": 4, "rateLimitRps": 25000, "authErrorRate": 0.002 } },
+    { "id": "app", "type": "apiServer", "position": { "x": 320, "y": 290 }, "label": "api-svc", "params": { "serviceTimeMs": 22, "vcpus": 8, "ramGB": 16, "replicas": 4 } },
+    { "id": "redis", "type": "cache", "position": { "x": 90, "y": 440 }, "label": "Redis (sessions)", "params": { "hitRatio": 0.95, "hitLatencyMs": 1 } },
+    { "id": "pool", "type": "dbProxy", "position": { "x": 320, "y": 450 }, "label": "PgBouncer", "params": { "backendConns": 120, "avgHoldMs": 9, "poolMode": "transaction", "queueDepth": 2000, "proxyLatencyMs": 0.5 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 320, "y": 600 }, "label": "Postgres", "params": { "architecture": "primary-replica", "engine": "postgres", "queryTimeMs": 8, "poolSize": 120, "readReplicas": 2, "readRatio": 0.8 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "client", "target": "gw", "params": {} },
+    { "id": "e2", "source": "gw", "target": "app", "params": {} },
+    { "id": "e3", "source": "app", "target": "redis", "params": { "timeoutSec": 0.2 } },
+    { "id": "e4", "source": "app", "target": "pool", "params": { "retries": 1, "timeoutSec": 2 } },
+    { "id": "e5", "source": "pool", "target": "db", "params": {} }
+  ],
+  "sim": {
+    "scenario": { "kind": "diurnal", "mode": "users", "targetRps": 5000, "users": 5000, "thinkTimeSec": 1, "durationSec": 150, "peakFactor": 3 },
+    "seed": 1,
+    "speed": 5
+  }
+}

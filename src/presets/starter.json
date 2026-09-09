@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "Starter kit",
+  "description": "The skeleton almost every request/response system starts from: a gateway at the edge, a stateless app tier, a look-aside cache, and a database. Sized with lots of headroom so nothing is red — a clean base to build on.",
+  "notes": "Add to it. Put a load balancer in front of more app replicas, split Postgres into primary + read replicas, drop a queue + worker behind the app for async jobs, wrap any third-party call in a circuit breaker. Then raise the user count and watch which tier gives out first.",
+  "nodes": [
+    { "id": "client", "type": "client", "position": { "x": 320, "y": 0 }, "label": "Users", "params": {} },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 320, "y": 150 }, "label": "API Gateway", "params": { "capacityRps": 50000, "instances": 1, "authLatencyMs": 3, "rateLimitRps": 20000, "authErrorRate": 0.001 } },
+    { "id": "app", "type": "apiServer", "position": { "x": 320, "y": 300 }, "label": "app-server", "params": { "serviceTimeMs": 20, "vcpus": 4, "ramGB": 8, "replicas": 3, "intrinsicErrorRate": 0.0005 } },
+    { "id": "cache", "type": "cache", "position": { "x": 110, "y": 450 }, "label": "Redis", "params": { "hitRatio": 0.8, "hitLatencyMs": 1 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 320, "y": 600 }, "label": "Postgres", "params": { "architecture": "single", "engine": "postgres", "queryTimeMs": 6, "poolSize": 40, "readRatio": 0.8 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "client", "target": "gw", "params": {} },
+    { "id": "e2", "source": "gw", "target": "app", "params": {} },
+    { "id": "e3", "source": "app", "target": "cache", "params": { "timeoutSec": 0.2 } },
+    { "id": "e4", "source": "cache", "target": "db", "params": { "retries": 1, "timeoutSec": 1 } }
+  ],
+  "sim": {
+    "scenario": { "kind": "constant", "mode": "users", "targetRps": 2000, "users": 2000, "thinkTimeSec": 1, "durationSec": 120, "peakFactor": 6 },
+    "seed": 1,
+    "speed": 4
+  }
+}

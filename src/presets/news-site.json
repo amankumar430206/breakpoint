@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "name": "Read-heavy news site",
+  "description": "A content site where the CDN absorbs ~90% of reads at the edge. Behind it: a gateway, a stateless render tier, an article cache, and a primary + read-replica Postgres. Writes are rare — and every write is streamed via CDC to a cache-warmer so the cache never serves a stale article.",
+  "notes": "Drop the CDN offload ratio and watch origin load multiply. Drop the article cache hit ratio and watch it hit the replicas. The CDC → topic → cache-warmer path is how you invalidate a cache without the write path knowing the cache exists — raise the write share (captureRatio on the CDC connector) to load the warmer.",
+  "nodes": [
+    { "id": "viewers", "type": "client", "position": { "x": 340, "y": 0 }, "label": "Readers", "params": {} },
+    { "id": "cdn", "type": "cdn", "position": { "x": 340, "y": 140 }, "label": "CDN", "params": { "offloadRatio": 0.9, "edgeLatencyMs": 15, "edgeCapacityRps": 2000000 } },
+    { "id": "gw", "type": "apiGateway", "position": { "x": 340, "y": 280 }, "label": "API Gateway", "params": { "capacityRps": 60000, "instances": 2, "authLatencyMs": 2, "rateLimitRps": 40000 } },
+    { "id": "app", "type": "apiServer", "position": { "x": 340, "y": 420 }, "label": "render-svc", "params": { "serviceTimeMs": 15, "vcpus": 8, "ramGB": 16, "replicas": 3 } },
+    { "id": "cache", "type": "cache", "position": { "x": 120, "y": 570 }, "label": "article cache", "params": { "hitRatio": 0.85, "hitLatencyMs": 1 } },
+    { "id": "db", "type": "sqlDatabase", "position": { "x": 120, "y": 720 }, "label": "Postgres", "params": { "architecture": "primary-replica", "engine": "postgres", "queryTimeMs": 6, "poolSize": 40, "readReplicas": 2, "readRatio": 0.9 } },
+    { "id": "cdc", "type": "cdcConnector", "position": { "x": 560, "y": 570 }, "label": "CDC", "params": { "captureRatio": 0.15, "lagMs": 300, "maxChangeRps": 50000 } },
+    { "id": "topic", "type": "pubsubTopic", "position": { "x": 560, "y": 700 }, "label": "article-changes", "params": { "throughputRps": 80000, "partitions": 6, "consumerGroups": 1 } },
+    { "id": "warmer", "type": "worker", "position": { "x": 560, "y": 840 }, "label": "cache-warmer", "params": { "jobTimeMs": 20, "vcpus": 4, "parallelPerVcpu": 4, "replicas": 2 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "viewers", "target": "cdn", "params": {} },
+    { "id": "e2", "source": "cdn", "target": "gw", "params": {} },
+    { "id": "e3", "source": "gw", "target": "app", "params": {} },
+    { "id": "e4", "source": "app", "target": "cache", "params": { "timeoutSec": 0.2 } },
+    { "id": "e5", "source": "cache", "target": "db", "params": { "retries": 1, "timeoutSec": 1 } },
+    { "id": "e6", "source": "app", "target": "cdc", "params": {} },
+    { "id": "e7", "source": "cdc", "target": "topic", "params": {} },
+    { "id": "e8", "source": "topic", "target": "warmer", "params": {} }
+  ],
+  "sim": {
+    "scenario": { "kind": "diurnal", "mode": "users", "targetRps": 30000, "users": 30000, "thinkTimeSec": 1, "durationSec": 150, "peakFactor": 4 },
+    "seed": 1,
+    "speed": 6
+  }
+}
