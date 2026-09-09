@@ -19,7 +19,8 @@ export type ComponentType =
   | 'objectStore'
   | 'externalService'
   | 'circuitBreaker'
-  | 'apiGateway';
+  | 'apiGateway'
+  | 'pubsubTopic';
 
 export interface Vec2 {
   x: number;
