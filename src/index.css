@@ -208,22 +208,25 @@ body {
 }
 
 /* ---- Connection ports --------------------------------------------------- */
-/* React Flow's default handle is a 6px dot that all but disappears against the
-   node border. Make it a clear 13px ring with a generous invisible hit area so
-   linking nodes is easy. RF's own stylesheet loads after this file, so the
-   size / colour rules need `!important` to win the cascade tie. */
+/* Every node carries a port on all four sides (edges float to whichever faces
+   the neighbour). Kept small + faint by default so four per node don't shout;
+   they brighten when you hover the node, and pop when you hover the port or
+   drag a new edge. RF's stylesheet loads after this file, so size / colour
+   rules need `!important`. */
 .react-flow__handle {
-  width: 13px !important;
-  height: 13px !important;
+  width: 11px !important;
+  height: 11px !important;
   min-width: 0;
   min-height: 0;
   border-radius: 999px !important;
   background: var(--tm-panel) !important;
-  border: 2px solid var(--tm-accent) !important;
+  border: 2px solid var(--tm-border-2) !important;
   box-shadow: 0 0 0 2px var(--tm-bg);
+  opacity: 0.55;
   transition:
     width 0.1s ease,
     height 0.1s ease,
+    opacity 0.12s ease,
     background 0.1s ease,
     border-color 0.1s ease;
 }
@@ -234,10 +237,16 @@ body {
   inset: -9px;
   border-radius: 999px;
 }
+.react-flow__node:hover .react-flow__handle {
+  opacity: 1;
+  border-color: var(--tm-accent) !important;
+}
 .react-flow__handle:hover {
-  width: 19px !important;
-  height: 19px !important;
+  width: 17px !important;
+  height: 17px !important;
+  opacity: 1;
   background: var(--tm-accent) !important;
+  border-color: var(--tm-accent) !important;
   cursor: crosshair;
 }
 /* while dragging a new edge, light up every port so targets are obvious */
@@ -246,6 +255,7 @@ body {
 .react-flow__handle.connectingto,
 .react-flow__handle-connecting,
 .react-flow__handle-valid {
+  opacity: 1;
   background: var(--tm-accent) !important;
   border-color: var(--tm-accent-soft) !important;
 }

@@ -1,27 +1,19 @@
 import { memo } from 'react';
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  useInternalNode,
+  type EdgeProps,
+} from '@xyflow/react';
 import { useViewStore } from '@/store/viewStore';
 import { useSimStore } from '@/store/simStore';
 import { fmtRps } from '@/lib/format';
+import { getEdgeParams } from './floating';
 
-function FlowEdgeInner({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  selected,
-}: EdgeProps) {
-  const [path, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-  });
+function FlowEdgeInner({ id, source, target, selected }: EdgeProps) {
+  const sourceNode = useInternalNode(source);
+  const targetNode = useInternalNode(target);
 
   const metrics = useViewStore((s) => s.perEdge[id]);
   const running = useSimStore((s) => s.running);
@@ -36,6 +28,17 @@ function FlowEdgeInner({
       : retry > 1.05
         ? 'var(--tm-warn-fg)'
         : 'var(--tm-border-2)';
+
+  if (!sourceNode || !targetNode) return null;
+  const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode);
+  const [path, labelX, labelY] = getBezierPath({
+    sourceX: sx,
+    sourceY: sy,
+    targetX: tx,
+    targetY: ty,
+    sourcePosition: sourcePos,
+    targetPosition: targetPos,
+  });
 
   return (
     <>

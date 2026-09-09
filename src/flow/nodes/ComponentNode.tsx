@@ -88,9 +88,6 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
     (s) => s.faults.find((f) => f.targetId === id && f.kind !== 'partition')?.kind,
   );
   const updateNodeParams = useDesignStore((s) => s.updateNodeParams);
-  const flowDir = useDesignStore((s) => s.flowDir);
-  const targetPos = flowDir === 'LR' ? Position.Left : Position.Top;
-  const sourcePos = flowDir === 'LR' ? Position.Right : Position.Bottom;
   // Client nodes show the configured load (kept in sync with the scenario bar).
   // Non-client selectors return '' so those nodes never re-render on load edits.
   const clientLoad = useSimStore((s) => {
@@ -236,11 +233,11 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
           borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
         }}
       >
-        {/* Connection ports — styled large + visible in index.css so edges are
-            easy to grab. Sit on the card border; not clipped (no overflow-hidden
-            on this div — only the header background is rounded/clipped). */}
-        {hasIn && <Handle type="target" position={targetPos} />}
-        {hasOut && <Handle type="source" position={sourcePos} />}
+        {/* One port per direction; the edge itself floats to whichever border
+            faces the neighbour (edges/floating.ts), so links look right in any
+            layout. Position here is just where the grab dot sits. */}
+        {hasIn && <Handle id="t-in" type="target" position={Position.Top} />}
+        {hasOut && <Handle id="s-out" type="source" position={Position.Bottom} />}
 
         <div
           className="flex items-center gap-2 rounded-t-lg px-2.5 pt-2 pb-1.5"

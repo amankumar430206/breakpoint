@@ -62,8 +62,11 @@ export function fromDesign(design: SystemDesign): { nodes: TmNode[]; edges: TmEd
       id: e.id,
       source: e.source,
       target: e.target,
-      sourceHandle: e.sourceHandle ?? undefined,
-      targetHandle: e.targetHandle ?? undefined,
+      // Edges float to whichever border faces the neighbour, so the handle is
+      // cosmetic — but React Flow needs a valid id, so map legacy `null`s to the
+      // node's single in / out port.
+      sourceHandle: e.sourceHandle ?? 's-out',
+      targetHandle: e.targetHandle ?? 't-in',
       type: 'flow',
       data: { params: e.params },
     })),
