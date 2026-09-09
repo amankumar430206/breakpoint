@@ -29,7 +29,8 @@ export type ComponentType =
   | 'vectorDb'
   | 'streamProcessor'
   | 'coordination'
-  | 'identityProvider';
+  | 'identityProvider'
+  | 'notificationService';
 
 export interface Vec2 {
   x: number;

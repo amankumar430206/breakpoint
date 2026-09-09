@@ -21,6 +21,7 @@ import { vectorDbModel } from './components/vectorDb';
 import { streamProcessorModel } from './components/streamProcessor';
 import { coordinationModel } from './components/coordination';
 import { identityProviderModel } from './components/identityProvider';
+import { notificationServiceModel } from './components/notificationService';
 import { serverlessFnModel } from './components/serverlessFn';
 
 const MODELS: Record<string, ComponentModel> = {};
@@ -47,6 +48,7 @@ for (const m of [
   streamProcessorModel,
   coordinationModel,
   identityProviderModel,
+  notificationServiceModel,
 ]) {
   MODELS[m.type] = m;
 }
