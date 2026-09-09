@@ -11,6 +11,7 @@ import { workerModel } from './components/worker';
 import { objectStoreModel } from './components/objectStore';
 import { externalServiceModel } from './components/externalService';
 import { circuitBreakerModel } from './components/circuitBreaker';
+import { apiGatewayModel } from './components/apiGateway';
 
 const MODELS: Record<string, ComponentModel> = {};
 for (const m of [
@@ -25,6 +26,7 @@ for (const m of [
   objectStoreModel,
   externalServiceModel,
   circuitBreakerModel,
+  apiGatewayModel,
 ]) {
   MODELS[m.type] = m;
 }

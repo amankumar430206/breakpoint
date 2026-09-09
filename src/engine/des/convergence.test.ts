@@ -335,4 +335,27 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(a.system.successRate).toBeLessThan(0.12);
     expect(sim.system.successRate).toBeLessThan(0.12);
   });
+
+  it('API gateway: the rate limit admits the same rate and 429s the rest in both engines', () => {
+    // 600 req/s offered, 240 req/s rate limit → ~60% come back 429.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('gw', 'apiGateway', { capacityRps: 50000, instances: 1, rateLimitRps: 240, authLatencyMs: 2, authErrorRate: 0 }),
+        node('s', 'apiServer', { serviceTimeMs: 1, concurrency: 128, replicas: 1, intrinsicErrorRate: 0 }),
+      ],
+      [edge('e1', 'c', 'gw'), edge('e2', 'gw', 's')],
+      600,
+    );
+    const sim = measure(d, 200, 1200);
+    const a = solve(d);
+
+    // backend sees only the admitted rate in both engines
+    expect(a.perNode.s.metrics.arrivalRate).toBeLessThan(280);
+    expect(rel(sim.perNode.s.arrivalRate, a.perNode.s.metrics.arrivalRate)).toBeLessThan(0.15);
+
+    // ~60% shed as 429 at the gateway
+    expect(a.perNode.gw.metrics.dropRate).toBeCloseTo(1 - 240 / 600, 2);
+    expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
+  });
 });

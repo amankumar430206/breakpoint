@@ -136,13 +136,17 @@ export interface ComponentModel {
   /**
    * Fraction of inflow (0..1) that continues to downstream edges. 1 for
    * passthrough/replicate, `1 − hitRatio` for a cache, `1 − offload` for a CDN,
-   * 0 for a sink. Called by the flow solver. `ctx.downstreamFailure` is the
-   * current end-to-end failure estimate for everything past this node — a
-   * circuit breaker uses it to compute how often it is OPEN and shielding.
+   * 0 for a sink. Called by the flow solver.
+   *  - `ctx.downstreamFailure` — the current end-to-end failure estimate for
+   *    everything past this node (a circuit breaker uses it to compute how often
+   *    it is OPEN and shielding).
+   *  - `ctx.inflow` — the node's current offered rate (req/s), for models whose
+   *    forwarded fraction is load-dependent (an API gateway sheds the load above
+   *    its rate limit as 429s, so the backend sees less).
    */
   outflowFraction(
     params: Record<string, unknown>,
-    ctx?: { downstreamFailure: number },
+    ctx?: { downstreamFailure?: number; inflow?: number },
   ): number;
 
   /** Steady-state analytical solve for one node. */

@@ -58,8 +58,9 @@ export interface FlowInput {
   order: string[];
   /** Arrival rate injected at each client node (req/s). */
   entryRate: number;
-  /** Fraction of a node's inflow that continues downstream (from the model). */
-  outflowFraction: (nodeId: string) => number;
+  /** Fraction of a node's inflow that continues downstream (from the model).
+   *  `inflow` is passed so load-dependent gates (rate limiters) can shed. */
+  outflowFraction: (nodeId: string, inflow: number) => number;
   /** Routing mode of a node's model. */
   routingMode: (nodeId: string) => 'passthrough' | 'replicate' | 'branch' | 'sink';
   /** Per-attempt failure probability of a *call over this edge* — the target
@@ -95,7 +96,7 @@ export function computeFlow(input: FlowInput): FlowOutput {
 
     const mode = routingMode(id);
     if (mode === 'sink') continue;
-    const forwardable = inflow * outflowFraction(id);
+    const forwardable = inflow * outflowFraction(id, inflow);
     if (forwardable <= 0) {
       for (const e of out) {
         edgeFlow.set(e.id, 0);

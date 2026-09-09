@@ -18,7 +18,8 @@ export type ComponentType =
   | 'cdn'
   | 'objectStore'
   | 'externalService'
-  | 'circuitBreaker';
+  | 'circuitBreaker'
+  | 'apiGateway';
 
 export interface Vec2 {
   x: number;
