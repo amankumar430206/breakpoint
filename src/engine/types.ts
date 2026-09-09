@@ -26,7 +26,8 @@ export type ComponentType =
   | 'serverlessFn'
   | 'searchIndex'
   | 'analyticsDb'
-  | 'vectorDb';
+  | 'vectorDb'
+  | 'streamProcessor';
 
 export interface Vec2 {
   x: number;

@@ -23,6 +23,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | `pubsubTopic` | messaging | replicate | M/M/1 at `throughputRps`; **fans out** — every consumer group gets the full stream | `throughputRps`, `partitions`, `consumerGroups`, `retentionSec`, `enqueueLatencyMs` |
 | `cdcConnector` | messaging | branch | change tap: `captureRatio` of inflow → topic, `lagMs` behind; wire `app → cdcConnector → topic` | `captureRatio`, `lagMs`, `maxChangeRps` |
 | `worker` | compute | replicate | M/M/c/K per replica; `c` from vCPU × parallelism vs RAM | `jobTimeMs`, `vcpus`, `ramGB`, `parallelPerVcpu`, `replicas`, `queueLimit` |
+| `streamProcessor` | compute | passthrough | M/M/c, `c = parallelism`; svc = `recordServiceMs·stateFactor` (RocksDB slower with big state); + amortised `checkpointStallMs²/(interval+stall)` per record | `recordServiceMs`, `parallelism`, `stateBackend`, `stateGB`, `checkpointSec`, `checkpointStallMs` |
 | `serverlessFn` | compute | replicate | M/M/c/c loss, `c = maxConcurrency`, no queue; svc = `execTimeMs + coldStartRate·coldStartMs`; excess → 429 | `execTimeMs`, `coldStartMs`, `coldStartRate`, `maxConcurrency`, `intrinsicErrorRate` |
 | `objectStore` | data | sink | M/M/1 at `opsRps` | `opLatencyMs`, `opsRps` |
 | `searchIndex` | data | sink | per-shard M/M/c/K; a query scatter-gathers to all shards, latency = slowest; shard search time = `queryTimeMs/shards` | `queryTimeMs`, `coordinatorMs`, `indexTimeMs`, `shards`, `replicas`, `readRatio`, `refreshIntervalSec`, `poolSize`, `keyDistribution` |

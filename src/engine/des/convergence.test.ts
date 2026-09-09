@@ -359,6 +359,37 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('stream processor: parallelism + amortised checkpoint latency track between engines', () => {
+    // 4 slots · 4 ms/record (heap) ⇒ 1000 rec/s; 400 ms stall / 20 s ⇒ ~8 ms
+    // amortised on every record.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('t', 'pubsubTopic', { throughputRps: 100000 }),
+        node('sp', 'streamProcessor', {
+          recordServiceMs: 4,
+          parallelism: 4,
+          stateBackend: 'heap',
+          stateGB: 1,
+          checkpointSec: 20,
+          checkpointStallMs: 400,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 't'), edge('e2', 't', 'sp')],
+      600,
+    );
+    const sim = measure(d, 120, 500);
+    const a = solve(d).perNode.sp.metrics;
+    const s = sim.perNode.sp;
+    expect(a.rho).toBeGreaterThan(0.45);
+    expect(a.rho).toBeLessThan(0.75);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
+    // mean carries the ~8 ms checkpoint amortisation in both engines
+    expect(a.latency.mean).toBeGreaterThan(0.01);
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.3);
+  });
+
   it('vector DB: HNSW query slots track between engines', () => {
     // HNSW ~4 ms/op, 4 slots ⇒ ~1000 ops/s; offer 600 ⇒ ρ ≈ 0.6.
     const d = design(

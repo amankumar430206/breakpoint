@@ -18,6 +18,7 @@ import { cdcConnectorModel } from './components/cdcConnector';
 import { searchIndexModel } from './components/searchIndex';
 import { analyticsDbModel } from './components/analyticsDb';
 import { vectorDbModel } from './components/vectorDb';
+import { streamProcessorModel } from './components/streamProcessor';
 import { serverlessFnModel } from './components/serverlessFn';
 
 const MODELS: Record<string, ComponentModel> = {};
@@ -41,6 +42,7 @@ for (const m of [
   searchIndexModel,
   analyticsDbModel,
   vectorDbModel,
+  streamProcessorModel,
 ]) {
   MODELS[m.type] = m;
 }
