@@ -91,13 +91,9 @@ function BottleneckPanelInner() {
                     suggested fixes
                   </div>
                   {analysis.fixes.map((f, i) => (
-                    <button
+                    <div
                       key={i}
-                      onClick={() => {
-                        updateNodeParams(f.nodeId, f.patch);
-                        setApplied(f.label);
-                      }}
-                      className="flex items-center gap-2 rounded border border-[var(--tm-border)] bg-[var(--tm-node)] px-2 py-1.5 text-left text-[11px] hover:border-[var(--tm-border-2)] hover:bg-[var(--tm-btn)]"
+                      className="flex items-center gap-2 rounded border border-[var(--tm-border)] bg-[var(--tm-node)] px-2 py-1.5 text-[11px]"
                     >
                       <span
                         className="shrink-0 rounded px-1 text-[10px]"
@@ -105,14 +101,27 @@ function BottleneckPanelInner() {
                           background: f.clears ? 'var(--tm-good-bg)' : 'var(--tm-warn-bg)',
                           color: f.clears ? 'var(--tm-good-fg)' : 'var(--tm-warn-fg)',
                         }}
+                        title={f.clears ? 'projected to fully clear the bottleneck' : 'projected to help, but not fully clear it'}
                       >
                         {f.clears ? 'clears' : 'helps'}
                       </span>
-                      <span className="flex-1 text-[var(--tm-text)]">{f.label}</span>
-                      <span className="tabnum shrink-0 text-[var(--tm-text-faint)]">
+                      <span className="min-w-0 flex-1 text-[var(--tm-text)]">{f.label}</span>
+                      <span
+                        className="tabnum shrink-0 text-[var(--tm-text-faint)]"
+                        title="projected success rate after this change"
+                      >
                         {(f.projectedSuccess * 100).toFixed(0)}%
                       </span>
-                    </button>
+                      <button
+                        onClick={() => {
+                          updateNodeParams(f.nodeId, f.patch);
+                          setApplied(f.label);
+                        }}
+                        className="shrink-0 rounded border border-[var(--tm-accent-border)] bg-[var(--tm-accent-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--tm-accent)] hover:bg-[var(--tm-accent-bg-hover)]"
+                      >
+                        Apply
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
