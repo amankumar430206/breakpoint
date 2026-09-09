@@ -20,7 +20,8 @@ export type ComponentType =
   | 'externalService'
   | 'circuitBreaker'
   | 'apiGateway'
-  | 'pubsubTopic';
+  | 'pubsubTopic'
+  | 'dbProxy';
 
 export interface Vec2 {
   x: number;

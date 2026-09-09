@@ -358,4 +358,23 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(a.perNode.gw.metrics.dropRate).toBeCloseTo(1 - 240 / 600, 2);
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
+
+  it('DB proxy: pooler utilization and connection-exhaustion drops track between engines', () => {
+    // 4 backend conns · (1000/8 ms) = 500 req/s capacity; offer 300 → ρ ≈ 0.6.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('p', 'dbProxy', { backendConns: 4, avgHoldMs: 8, poolMode: 'transaction', queueDepth: 200, proxyLatencyMs: 0.5 }),
+        node('db', 'sqlDatabase', { architecture: 'single', queryTimeMs: 8, poolSize: 400, intrinsicErrorRate: 0 }),
+      ],
+      [edge('e1', 'c', 'p'), edge('e2', 'p', 'db')],
+      300,
+    );
+    const sim = measure(d, 150, 1000);
+    const a = solve(d);
+    expect(a.perNode.p.metrics.rho).toBeGreaterThan(0.45);
+    expect(a.perNode.p.metrics.rho).toBeLessThan(0.8);
+    expect(Math.abs(sim.perNode.p.rho - a.perNode.p.metrics.rho)).toBeLessThan(0.1);
+    expect(Math.abs(sim.perNode.p.dropRate - a.perNode.p.metrics.dropRate)).toBeLessThan(0.05);
+  });
 });

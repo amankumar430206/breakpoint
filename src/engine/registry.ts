@@ -13,6 +13,7 @@ import { externalServiceModel } from './components/externalService';
 import { circuitBreakerModel } from './components/circuitBreaker';
 import { apiGatewayModel } from './components/apiGateway';
 import { pubsubTopicModel } from './components/pubsubTopic';
+import { dbProxyModel } from './components/dbProxy';
 
 const MODELS: Record<string, ComponentModel> = {};
 for (const m of [
@@ -29,6 +30,7 @@ for (const m of [
   circuitBreakerModel,
   apiGatewayModel,
   pubsubTopicModel,
+  dbProxyModel,
 ]) {
   MODELS[m.type] = m;
 }
