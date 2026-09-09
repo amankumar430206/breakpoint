@@ -27,7 +27,8 @@ export type ComponentType =
   | 'searchIndex'
   | 'analyticsDb'
   | 'vectorDb'
-  | 'streamProcessor';
+  | 'streamProcessor'
+  | 'coordination';
 
 export interface Vec2 {
   x: number;

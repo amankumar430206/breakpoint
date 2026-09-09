@@ -359,6 +359,34 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('coordination service: quorum-write blend tracks between engines', () => {
+    // 5-node ensemble, 40% writes → each write waits for 3 acks; poolSize 32.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', { serviceTimeMs: 0.5, concurrency: 128, replicas: 1, intrinsicErrorRate: 0 }),
+        node('zk', 'coordination', {
+          ensembleSize: 5,
+          opLatencyMs: 2,
+          writeQuorumMs: 6,
+          readRatio: 0.6,
+          watchClients: 1000,
+          poolSize: 32,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'zk')],
+      1500,
+    );
+    const sim = measure(d, 120, 400);
+    const a = solve(d).perNode.zk.metrics;
+    const s = sim.perNode.zk;
+    expect(a.rho).toBeGreaterThan(0.35);
+    expect(a.rho).toBeLessThan(0.85);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.25);
+  });
+
   it('stream processor: parallelism + amortised checkpoint latency track between engines', () => {
     // 4 slots · 4 ms/record (heap) ⇒ 1000 rec/s; 400 ms stall / 20 s ⇒ ~8 ms
     // amortised on every record.
