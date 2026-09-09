@@ -359,6 +359,33 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('data warehouse: slot-bound M/M/c/K at second-scale service tracks between engines', () => {
+    // 8 slots · 2 s scans ⇒ 4 queries/s capacity; offer 2.5 ⇒ ρ ≈ 0.625.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('bi', 'apiServer', { serviceTimeMs: 0.5, concurrency: 64, replicas: 1, intrinsicErrorRate: 0 }),
+        node('dw', 'analyticsDb', {
+          scanTimeSec: 2,
+          concurrencySlots: 8,
+          resultCacheHitRatio: 0,
+          queueOnFull: true,
+          queueLimit: 50,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 'bi'), edge('e2', 'bi', 'dw')],
+      2.5,
+    );
+    const sim = measure(d, 400, 3000);
+    const a = solve(d).perNode.dw.metrics;
+    const s = sim.perNode.dw;
+    expect(a.rho).toBeGreaterThan(0.5);
+    expect(a.rho).toBeLessThan(0.75);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.1);
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.25);
+  });
+
   it('search cluster: aggregate ρ and latency track between engines at low load', () => {
     // uniform keys, lightly loaded — scatter-gather ≈ a single shard service, so
     // the per-shard analytical model and the DES aggregate station agree.

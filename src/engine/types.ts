@@ -24,7 +24,8 @@ export type ComponentType =
   | 'dbProxy'
   | 'cdcConnector'
   | 'serverlessFn'
-  | 'searchIndex';
+  | 'searchIndex'
+  | 'analyticsDb';
 
 export interface Vec2 {
   x: number;

@@ -26,6 +26,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | `serverlessFn` | compute | replicate | M/M/c/c loss, `c = maxConcurrency`, no queue; svc = `execTimeMs + coldStartRate·coldStartMs`; excess → 429 | `execTimeMs`, `coldStartMs`, `coldStartRate`, `maxConcurrency`, `intrinsicErrorRate` |
 | `objectStore` | data | sink | M/M/1 at `opsRps` | `opLatencyMs`, `opsRps` |
 | `searchIndex` | data | sink | per-shard M/M/c/K; a query scatter-gathers to all shards, latency = slowest; shard search time = `queryTimeMs/shards` | `queryTimeMs`, `coordinatorMs`, `indexTimeMs`, `shards`, `replicas`, `readRatio`, `refreshIntervalSec`, `poolSize`, `keyDistribution` |
+| `analyticsDb` | data | sink | M/M/c/K, `c = concurrencySlots`, seconds-scale service; `resultCacheHitRatio` shortens effective scan; `queueOnFull` off ⇒ loss | `scanTimeSec`, `concurrencySlots`, `resultCacheHitRatio`, `queueOnFull`, `queueLimit` |
 | `externalService` | external | sink | rate-limited M/M/1 with jitter | `latencyMs`, `jitterMs`, `rateLimitRps`, `errorRate`, `timeoutSec` |
 | `circuitBreaker` | resilience | passthrough | steady-state {closed, open, half-open}; see below | `errorThresholdPct`, `windowSec`, `cooldownSec`, `halfOpenProbes`, `fallbackErrorRate`, `fastFailMs` |
 
