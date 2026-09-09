@@ -206,3 +206,51 @@ body {
 .react-flow__controls .react-flow__controls-button:hover svg {
   fill: var(--tm-text);
 }
+
+/* ---- Connection ports --------------------------------------------------- */
+/* React Flow's default handle is a 6px dot that all but disappears against the
+   node border. Make it a clear 13px ring with a generous invisible hit area so
+   linking nodes is easy. RF's own stylesheet loads after this file, so the
+   size / colour rules need `!important` to win the cascade tie. */
+.react-flow__handle {
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 999px !important;
+  background: var(--tm-panel) !important;
+  border: 2px solid var(--tm-accent) !important;
+  box-shadow: 0 0 0 2px var(--tm-bg);
+  transition:
+    width 0.1s ease,
+    height 0.1s ease,
+    background 0.1s ease,
+    border-color 0.1s ease;
+}
+/* forgiving grab target — larger than the visible ring */
+.react-flow__handle::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 999px;
+}
+.react-flow__handle:hover {
+  width: 19px !important;
+  height: 19px !important;
+  background: var(--tm-accent) !important;
+  cursor: crosshair;
+}
+/* while dragging a new edge, light up every port so targets are obvious */
+.react-flow.connecting .react-flow__handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto,
+.react-flow__handle-connecting,
+.react-flow__handle-valid {
+  background: var(--tm-accent) !important;
+  border-color: var(--tm-accent-soft) !important;
+}
+.react-flow__connectionline .react-flow__connection-path,
+.react-flow__connectionline path {
+  stroke: var(--tm-accent);
+  stroke-width: 2.5;
+}

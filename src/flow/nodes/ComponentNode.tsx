@@ -215,7 +215,7 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
       })}
 
       <div
-        className={`relative overflow-hidden rounded-lg border text-[var(--tm-text)] shadow-sm transition-colors ${pulse}`}
+        className={`relative rounded-lg border text-[var(--tm-text)] shadow-sm transition-colors ${pulse}`}
         style={{
           width: NODE_W,
           background: isExternal ? 'var(--tm-panel-2)' : 'var(--tm-node)',
@@ -224,13 +224,14 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
           borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
         }}
       >
-        {hasIn && <Handle type="target" position={targetPos} style={{ background: 'var(--tm-border-2)' }} />}
-        {hasOut && (
-          <Handle type="source" position={sourcePos} style={{ background: 'var(--tm-border-2)' }} />
-        )}
+        {/* Connection ports — styled large + visible in index.css so edges are
+            easy to grab. Sit on the card border; not clipped (no overflow-hidden
+            on this div — only the header background is rounded/clipped). */}
+        {hasIn && <Handle type="target" position={targetPos} />}
+        {hasOut && <Handle type="source" position={sourcePos} />}
 
         <div
-          className="flex items-center gap-2 px-2.5 pt-2 pb-1.5"
+          className="flex items-center gap-2 rounded-t-lg px-2.5 pt-2 pb-1.5"
           style={tier === 'infra' ? { background: 'var(--tm-panel-2)' } : undefined}
         >
           <span style={{ color: accent }}>
