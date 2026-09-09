@@ -157,6 +157,10 @@ export interface ComponentModel {
 
   /** Single-station spec for the discrete-event simulator. */
   simSpec(params: Record<string, unknown>): SimSpec;
+
+  /** Baseline load this node originates on its own — a scheduled batch job's
+   *  average record rate (req/s). Analytical only; omitted by every other type. */
+  selfLoad?(params: Record<string, unknown>): number;
 }
 
 /** Narrowing helper for reading numeric params with a fallback. */

@@ -23,6 +23,7 @@ import { coordinationModel } from './components/coordination';
 import { identityProviderModel } from './components/identityProvider';
 import { notificationServiceModel } from './components/notificationService';
 import { dnsModel } from './components/dns';
+import { batchJobModel } from './components/batchJob';
 import { serverlessFnModel } from './components/serverlessFn';
 
 const MODELS: Record<string, ComponentModel> = {};
@@ -51,6 +52,7 @@ for (const m of [
   identityProviderModel,
   notificationServiceModel,
   dnsModel,
+  batchJobModel,
 ]) {
   MODELS[m.type] = m;
 }

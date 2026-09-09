@@ -174,6 +174,10 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
         inflow,
       }),
     routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
+    selfLoad: (id) => {
+      const mdl = getModel(g.byId.get(id)!.type);
+      return mdl.selfLoad ? mdl.selfLoad(params.get(id)!) : 0;
+    },
     attemptFailure: (e) =>
       combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),
   });
@@ -212,6 +216,10 @@ function solveAtRate(design: SystemDesign, entryRate: number): SolveResult {
         inflow,
       }),
       routingMode: (id) => getModel(g.byId.get(id)!.type).routing,
+    selfLoad: (id) => {
+      const mdl = getModel(g.byId.get(id)!.type);
+      return mdl.selfLoad ? mdl.selfLoad(params.get(id)!) : 0;
+    },
       attemptFailure: (e) =>
       combineFail(failure.get(e.target) ?? 0, timeoutProb(metrics.get(e.target) ?? idleMetrics(1), e.params.timeoutSec)),
     });

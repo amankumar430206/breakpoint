@@ -31,7 +31,8 @@ export type ComponentType =
   | 'coordination'
   | 'identityProvider'
   | 'notificationService'
-  | 'dns';
+  | 'dns'
+  | 'batchJob';
 
 export interface Vec2 {
   x: number;

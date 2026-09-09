@@ -66,6 +66,9 @@ export interface FlowInput {
   /** Per-attempt failure probability of a *call over this edge* — the target
    *  node's service failure combined with the edge's timeout probability. */
   attemptFailure: (edge: EdgeSpec) => number;
+  /** Baseline load a node originates on its own (a scheduled batch job), req/s.
+   *  0 for everything else. */
+  selfLoad?: (nodeId: string) => number;
 }
 
 export interface FlowOutput {
@@ -80,7 +83,7 @@ export interface FlowOutput {
  * amplified) flow on every edge. The caller iterates this to a fixed point.
  */
 export function computeFlow(input: FlowInput): FlowOutput {
-  const { g, order, entryRate, outflowFraction, routingMode, attemptFailure } = input;
+  const { g, order, entryRate, outflowFraction, routingMode, attemptFailure, selfLoad } = input;
   const nodeInflow = new Map<string, number>(g.nodes.map((n) => [n.id, 0]));
   const edgeFlow = new Map<string, number>();
   const edgeRetryFactor = new Map<string, number>();
@@ -90,6 +93,8 @@ export function computeFlow(input: FlowInput): FlowOutput {
     if (node.type === 'client') {
       nodeInflow.set(id, nodeInflow.get(id)! + entryRate);
     }
+    const own = selfLoad?.(id) ?? 0;
+    if (own > 0) nodeInflow.set(id, nodeInflow.get(id)! + own);
     const inflow = nodeInflow.get(id)!;
     const out = g.outEdges.get(id)!;
     if (out.length === 0) continue;

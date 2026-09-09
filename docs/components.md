@@ -25,6 +25,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | `cdcConnector` | messaging | branch | change tap: `captureRatio` of inflow → topic, `lagMs` behind; wire `app → cdcConnector → topic` | `captureRatio`, `lagMs`, `maxChangeRps` |
 | `worker` | compute | replicate | M/M/c/K per replica; `c` from vCPU × parallelism vs RAM | `jobTimeMs`, `vcpus`, `ramGB`, `parallelPerVcpu`, `replicas`, `queueLimit` |
 | `streamProcessor` | compute | passthrough | M/M/c, `c = parallelism`; svc = `recordServiceMs·stateFactor` (RocksDB slower with big state); + amortised `checkpointStallMs²/(interval+stall)` per record | `recordServiceMs`, `parallelism`, `stateBackend`, `stateGB`, `checkpointSec`, `checkpointStallMs` |
+| `batchJob` | compute | replicate | originates `recordsPerRun/intervalSec` req/s (analytical `selfLoad`); M/M/c duty-cycle at `parallelism` | `intervalSec`, `recordsPerRun`, `recordServiceMs`, `parallelism` |
 | `serverlessFn` | compute | replicate | M/M/c/c loss, `c = maxConcurrency`, no queue; svc = `execTimeMs + coldStartRate·coldStartMs`; excess → 429 | `execTimeMs`, `coldStartMs`, `coldStartRate`, `maxConcurrency`, `intrinsicErrorRate` |
 | `objectStore` | data | sink | M/M/1 at `opsRps` | `opLatencyMs`, `opsRps` |
 | `coordination` | data | sink | M/M/c, blended read/write; writes wait for `⌊N/2⌋+1` acks (grows with `ensembleSize` + `watchClients`); reads local | `ensembleSize`, `opLatencyMs`, `writeQuorumMs`, `readRatio`, `linearizableReads`, `watchClients`, `poolSize` |
