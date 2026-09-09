@@ -17,6 +17,12 @@ export interface SeriesPoint {
   servedRps: number;
   p99: number;
   successRate: number;
+  /** Fraction of offered requests that failed (1 − successRate). */
+  errRate: number;
+  /** Mean requests in the system across every node (total in-flight). */
+  inFlight: number;
+  /** Highest utilisation ρ across all nodes — the busiest tier. */
+  maxRho: number;
   /** ρ and p99 of the currently-selected node, if any. */
   nodeRho: number;
   nodeP99: number;
@@ -211,6 +217,15 @@ export const useViewStore = create<ViewState>((set, get) => ({
     const perNodeOut = nodeChanged ? perNode : prevNode;
     const perEdgeOut = edgeChanged ? perEdge : prevEdge;
 
+    // System-wide aggregates over every node — computed here, off the render path.
+    let maxRho = 0;
+    let inFlight = 0;
+    for (const m of Object.values(perNodeOut)) {
+      const r = Number.isFinite(m.rho) ? m.rho : 1;
+      if (r > maxRho) maxRho = r;
+      if (Number.isFinite(m.inSystem)) inFlight += m.inSystem;
+    }
+
     const nid = get().seriesNodeId;
     const nodeM = nid ? perNodeOut[nid] : undefined;
     const point: SeriesPoint = {
@@ -219,6 +234,9 @@ export const useViewStore = create<ViewState>((set, get) => ({
       servedRps: snap.system.servedRps,
       p99: Number.isFinite(snap.system.latency.p99) ? snap.system.latency.p99 : 0,
       successRate: snap.system.successRate,
+      errRate: Math.max(0, 1 - snap.system.successRate),
+      inFlight,
+      maxRho,
       nodeRho: nodeM ? nodeM.rho : 0,
       nodeP99: nodeM && Number.isFinite(nodeM.latency.p99) ? nodeM.latency.p99 : 0,
     };

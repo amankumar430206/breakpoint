@@ -1,5 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type uPlot from 'uplot';
+import { deriveConcurrency, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
@@ -11,15 +12,35 @@ const C_OFFERED = '#7d8796';
 const C_SERVED = '#3b82f6';
 const C_SYS_P99 = '#f0883e';
 const C_NODE_P99 = '#8b5cf6';
+const C_MAX_RHO = '#e5484d';
+const C_NODE_CPU = '#3fb950';
+const C_NODE_MEM = '#d29922';
+
+const COMPUTE_TYPES = new Set<ComponentType>(['apiServer', 'worker']);
+
+/** How a compute node's ρ maps onto its CPU vs its RAM axis. The binding
+ *  resource tracks ρ 1:1; the other sits proportionally lower (it has slack). */
+function utilFactors(
+  type: ComponentType,
+  params: Record<string, unknown>,
+): { cpu: number; mem: number | null } | null {
+  if (!COMPUTE_TYPES.has(type)) return null;
+  const s = deriveConcurrency(params);
+  if (!Number.isFinite(s.memSlots)) return { cpu: 1, mem: null };
+  return {
+    cpu: Math.min(1, s.concurrency / s.cpuSlots),
+    mem: Math.min(1, s.concurrency / s.memSlots),
+  };
+}
 
 const H_KEY = 'tm-drawer-h';
 const H_MIN = 140;
 const readH = () => {
   try {
     const v = Number(localStorage.getItem(H_KEY));
-    return Number.isFinite(v) && v >= H_MIN ? v : 240;
+    return Number.isFinite(v) && v >= H_MIN ? v : 260;
   } catch {
-    return 240;
+    return 260;
   }
 };
 
@@ -83,7 +104,15 @@ function MetricsDrawerInner() {
     return () => clearTimeout(id);
   }, [h]);
 
-  const trackedLabel = nodes.find((n) => n.id === selectedNodeId)?.data.label;
+  const trackedNode = nodes.find((n) => n.id === selectedNodeId);
+  const trackedLabel = trackedNode?.data.label;
+  const factors = useMemo(
+    () =>
+      trackedNode
+        ? utilFactors(trackedNode.type as ComponentType, trackedNode.data.params ?? {})
+        : null,
+    [trackedNode],
+  );
 
   const throughput: uPlot.AlignedData = useMemo(() => {
     const t = series.map((p) => p.t);
@@ -98,6 +127,22 @@ function MetricsDrawerInner() {
       selectedNodeId ? series.map((p) => p.nodeP99 * 1000) : [],
     ];
   }, [series, selectedNodeId]);
+
+  const utilisation: uPlot.AlignedData = useMemo(() => {
+    const t = series.map((p) => p.t);
+    const rows: (number[] | (number | null)[])[] = [series.map((p) => p.maxRho * 100)];
+    if (factors) {
+      rows.push(series.map((p) => Math.min(100, p.nodeRho * factors.cpu * 100)));
+      rows.push(
+        factors.mem == null
+          ? series.map(() => null)
+          : series.map((p) => Math.min(100, p.nodeRho * (factors.mem as number) * 100)),
+      );
+    } else if (selectedNodeId) {
+      rows.push(series.map((p) => Math.min(100, p.nodeRho * 100)));
+    }
+    return [t, ...rows];
+  }, [series, factors, selectedNodeId]);
 
   const tputSeries: uPlot.Series[] = useMemo(
     () => [
@@ -115,9 +160,28 @@ function MetricsDrawerInner() {
     ],
     [selectedNodeId],
   );
+  const utilSeries: uPlot.Series[] = useMemo(() => {
+    const s: uPlot.Series[] = [{}, { label: 'busiest tier ρ', stroke: C_MAX_RHO, width: 1.5 }];
+    if (factors) {
+      s.push({ label: 'node CPU', stroke: C_NODE_CPU, width: 1.5 });
+      if (factors.mem != null) s.push({ label: 'node RAM', stroke: C_NODE_MEM, width: 1.5 });
+    } else if (selectedNodeId) {
+      s.push({ label: 'node ρ', stroke: C_NODE_CPU, width: 1.5 });
+    }
+    return s;
+  }, [factors, selectedNodeId]);
 
+  const last = series.length ? series[series.length - 1] : null;
   const hasData = series.length > 1;
   const bodyOpen = open || full;
+
+  const utilLegend: [string, string][] = [['busiest tier', C_MAX_RHO]];
+  if (factors) {
+    utilLegend.push([trackedLabel ? `${trackedLabel} CPU` : 'node CPU', C_NODE_CPU]);
+    if (factors.mem != null) utilLegend.push([trackedLabel ? `${trackedLabel} RAM` : 'node RAM', C_NODE_MEM]);
+  } else if (selectedNodeId && trackedLabel) {
+    utilLegend.push([trackedLabel, C_NODE_CPU]);
+  }
 
   return (
     <div
@@ -166,11 +230,17 @@ function MetricsDrawerInner() {
           </span>
         )}
 
-        <span className="tabnum ml-auto flex gap-4">
+        <span className="tabnum ml-auto flex flex-wrap justify-end gap-x-4 gap-y-0.5">
           <Kpi label="offered" value={fmtRps(system.offeredRps)} />
           <Kpi label="served" value={fmtRps(system.servedRps)} />
           <Kpi label="p99" value={fmtDuration(system.latency.p99)} />
-          <Kpi label="success" value={fmtPct(system.successRate)} />
+          <Kpi label="success" value={fmtPct(system.successRate)} alert={system.successRate < 0.97} />
+          <Kpi
+            label="busiest ρ"
+            value={last ? last.maxRho.toFixed(2) : '—'}
+            alert={!!last && last.maxRho >= 0.98}
+          />
+          <Kpi label="in flight" value={last ? last.inFlight.toFixed(0) : '—'} />
         </span>
 
         <button
@@ -187,44 +257,58 @@ function MetricsDrawerInner() {
 
       {bodyOpen && (
         <div
-          className="flex min-h-0 px-4 pb-3"
+          className="flex min-h-0 flex-col overflow-y-auto px-4 pb-3"
           style={full ? { flex: '1 1 auto' } : { height: h }}
         >
           {hasData ? (
-            <div className="grid min-h-0 w-full grid-cols-2 gap-4">
+            <div className="flex min-h-0 w-full flex-col gap-4">
+              <div className="grid w-full grid-cols-2 gap-4">
+                <Panel
+                  title="Throughput (req/s)"
+                  legend={[
+                    ['offered', C_OFFERED],
+                    ['served', C_SERVED],
+                  ]}
+                >
+                  <UPlotChart data={throughput} series={tputSeries} height={120} fmtY={(v) => fmtRps(v)} />
+                </Panel>
+                <Panel
+                  title="Latency p99 (ms)"
+                  legend={
+                    selectedNodeId && trackedLabel
+                      ? [
+                          ['system', C_SYS_P99],
+                          [trackedLabel, C_NODE_P99],
+                        ]
+                      : [['system', C_SYS_P99]]
+                  }
+                >
+                  <UPlotChart
+                    data={latency}
+                    series={latSeries}
+                    height={120}
+                    fmtY={(v) => `${Math.round(v)}`}
+                  />
+                </Panel>
+              </div>
               <Panel
-                title="Throughput (req/s)"
-                legend={[
-                  ['offered', C_OFFERED],
-                  ['served', C_SERVED],
-                ]}
-              >
-                <UPlotChart data={throughput} series={tputSeries} height={120} fmtY={(v) => fmtRps(v)} />
-              </Panel>
-              <Panel
-                title="Latency p99 (ms)"
-                legend={
-                  selectedNodeId && trackedLabel
-                    ? [
-                        ['system', C_SYS_P99],
-                        [trackedLabel, C_NODE_P99],
-                      ]
-                    : [['system', C_SYS_P99]]
-                }
+                title="Utilisation (%) — CPU / RAM / busiest tier"
+                legend={utilLegend}
+                hint="Select a compute node on the canvas to see its CPU and RAM separately."
               >
                 <UPlotChart
-                  data={latency}
-                  series={latSeries}
-                  height={120}
+                  data={utilisation}
+                  series={utilSeries}
+                  height={110}
                   fmtY={(v) => `${Math.round(v)}`}
                 />
               </Panel>
             </div>
           ) : (
-            <div className="flex w-full items-center justify-center text-[11px] text-[var(--tm-text-faint)]">
+            <div className="flex w-full flex-1 items-center justify-center text-[11px] text-[var(--tm-text-faint)]">
               {running
                 ? 'Recording…'
-                : 'Press ▶ Play to record throughput, latency and success over the run.'}
+                : 'Press ▶ Play to record throughput, latency, utilisation and success over the run.'}
             </div>
           )}
         </div>
@@ -236,17 +320,21 @@ function MetricsDrawerInner() {
 function Panel({
   title,
   legend,
+  hint,
   children,
 }: {
   title: string;
   legend: [string, string][];
-  children: React.ReactNode;
+  hint?: string;
+  children: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-col rounded-lg border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2">
       <div className="mb-1 flex items-center gap-3 text-[10px] text-[var(--tm-text-faint)]">
-        <span className="uppercase tracking-wide">{title}</span>
-        <span className="flex gap-2">
+        <span className="uppercase tracking-wide" title={hint}>
+          {title}
+        </span>
+        <span className="flex flex-wrap gap-2">
           {legend.map(([l, c]) => (
             <span key={l} className="flex items-center gap-1">
               <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: c }} />
@@ -260,11 +348,11 @@ function Panel({
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <span className="flex items-baseline gap-1">
       <span className="text-[9px] uppercase text-[var(--tm-text-faint)]">{label}</span>
-      <span className="text-[var(--tm-text)]">{value}</span>
+      <span style={{ color: alert ? 'var(--tm-crit-fg)' : 'var(--tm-text)' }}>{value}</span>
     </span>
   );
 }

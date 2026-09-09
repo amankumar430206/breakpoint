@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getModel } from '@/engine';
+import { deriveConcurrency, getModel } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
@@ -152,6 +152,24 @@ function NodeInspector({
     [model, params],
   );
 
+  // CPU / RAM split for compute nodes: ρ is the binding resource; the other axis
+  // sits proportionally lower. `conns` = busy pool slots for pool-bound tiers.
+  const sizing = useMemo(
+    () => (type === 'apiServer' || type === 'worker' ? deriveConcurrency(params) : null),
+    [type, params],
+  );
+  const cpuPct = m && sizing ? Math.min(1, m.rho * (sizing.concurrency / sizing.cpuSlots)) : null;
+  const memPct =
+    m && sizing && Number.isFinite(sizing.memSlots)
+      ? Math.min(1, m.rho * (sizing.concurrency / sizing.memSlots))
+      : null;
+  const poolLike =
+    type === 'sqlDatabase' || type === 'dbProxy' || type === 'cache' || type === 'loadBalancer';
+  const conns =
+    m && poolLike && Number.isFinite(m.servers) && m.servers > 0
+      ? `${Math.round(m.rho * m.servers).toLocaleString()} / ${m.servers.toLocaleString()}`
+      : null;
+
   return (
     <div className="flex flex-col gap-3 p-3">
       <div>
@@ -165,12 +183,24 @@ function NodeInspector({
 
       {m && (
         <div className="tabnum grid grid-cols-2 gap-1 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
-          <Metric label="utilization ρ" value={m.rho.toFixed(3)} alert={m.rho >= 1} />
-          <Metric label="arrivals" value={fmtRps(m.arrivalRate)} />
-          <Metric label="p50 / p99" value={`${fmtDuration(m.latency.p50)} / ${fmtDuration(m.latency.p99)}`} />
-          <Metric label="in queue" value={m.inQueue.toFixed(1)} />
+          <Metric label="utilization ρ" value={m.rho.toFixed(3)} alert={m.rho >= 0.98} />
+          {cpuPct !== null && (
+            <Metric label="CPU" value={fmtPct(cpuPct)} alert={cpuPct >= 0.9} />
+          )}
+          {memPct !== null && (
+            <Metric label="RAM" value={fmtPct(memPct)} alert={memPct >= 0.9} />
+          )}
+          <Metric label="offered" value={fmtRps(m.arrivalRate)} />
+          <Metric label="throughput" value={fmtRps(m.throughput)} />
+          <Metric label="p50 / p95 / p99" value={`${fmtDuration(m.latency.p50)} / ${fmtDuration(m.latency.p95)} / ${fmtDuration(m.latency.p99)}`} />
+          <Metric label="in flight" value={Number.isFinite(m.inSystem) ? m.inSystem.toFixed(1) : '∞'} />
+          <Metric label="in queue" value={Number.isFinite(m.inQueue) ? m.inQueue.toFixed(1) : '∞'} />
+          {conns && <Metric label="conns in use" value={conns} />}
           <Metric label="drop" value={fmtPct(m.dropRate)} alert={m.dropRate > 0.01} />
           <Metric label="error" value={fmtPct(m.errorRate)} alert={m.errorRate > 0.02} />
+          {m.backlogGrowth > 0 && (
+            <Metric label="backlog" value={`+${fmtRps(m.backlogGrowth)}`} alert />
+          )}
         </div>
       )}
 

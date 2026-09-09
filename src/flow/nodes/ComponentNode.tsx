@@ -140,6 +140,12 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
   const hasOut = model.routing !== 'sink';
   const isExternal = tier === 'external';
   const accent = isExternal ? EXTERNAL_ACCENT : health;
+  const borderC = selected
+    ? 'var(--tm-accent)'
+    : isExternal
+      ? EXTERNAL_ACCENT
+      : 'var(--tm-border)';
+  const borderS: 'solid' | 'dashed' = isExternal ? 'dashed' : 'solid';
   const pulse =
     m?.overloaded || bottleneck === 'critical'
       ? 'tm-pulse-crit'
@@ -185,7 +191,9 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
             left: pad + realGhosts * STRIP + OSTRIP,
             height: `calc(100% - ${pad * 2}px)`,
             background: 'var(--tm-node-ghost)',
-            borderColor: 'var(--tm-border)',
+            borderTopColor: 'var(--tm-border)',
+            borderRightColor: 'var(--tm-border)',
+            borderBottomColor: 'var(--tm-border)',
             borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
           }}
         >
@@ -206,7 +214,9 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
               left: pad + depth * STRIP,
               height: `calc(100% - ${pad * 2}px)`,
               background: 'var(--tm-node-ghost)',
-              borderColor: 'var(--tm-border)',
+              borderTopColor: 'var(--tm-border)',
+              borderRightColor: 'var(--tm-border)',
+              borderBottomColor: 'var(--tm-border)',
               borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
               opacity: 0.55 + i * 0.2,
             }}
@@ -219,8 +229,10 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
         style={{
           width: NODE_W,
           background: isExternal ? 'var(--tm-panel-2)' : 'var(--tm-node)',
-          borderColor: selected ? 'var(--tm-accent)' : isExternal ? EXTERNAL_ACCENT : 'var(--tm-border)',
-          borderStyle: isExternal ? 'dashed' : 'solid',
+          // all-longhand: mixing `borderColor` / `borderStyle` shorthand with the
+          // `borderLeft*` longhand triggers a React re-render warning.
+          borderTopColor: borderC, borderRightColor: borderC, borderBottomColor: borderC,
+          borderTopStyle: borderS, borderRightStyle: borderS, borderBottomStyle: borderS,
           borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: 'solid' as const,
         }}
       >
