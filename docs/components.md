@@ -31,6 +31,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | `analyticsDb` | data | sink | M/M/c/K, `c = concurrencySlots`, seconds-scale service; `resultCacheHitRatio` shortens effective scan; `queueOnFull` off ⇒ loss | `scanTimeSec`, `concurrencySlots`, `resultCacheHitRatio`, `queueOnFull`, `queueLimit` |
 | `vectorDb` | data | sink | M/M/c, `c = poolSize`; svc from indexType (flat ∝ vectorCount, hnsw ~const) × topK × dims; disk-spill 10×+ when the index exceeds `ramGB` | `indexType`, `dimensions`, `topK`, `queryTimeMs`, `vectorCount`, `writeRatio`, `ramGB`, `poolSize` |
 | `externalService` | external | sink | rate-limited M/M/1 with jitter | `latencyMs`, `jitterMs`, `rateLimitRps`, `errorRate`, `timeoutSec` |
+| `identityProvider` | external | sink | M/M/c at `poolSize`; blended issue / introspect / session-cache-hit service | `introspectMs`, `tokenIssueMs`, `issueRatio`, `sessionCacheHitRatio`, `poolSize`, `providerErrorRate` |
 | `circuitBreaker` | resilience | passthrough | steady-state {closed, open, half-open}; see below | `errorThresholdPct`, `windowSec`, `cooldownSec`, `halfOpenProbes`, `fallbackErrorRate`, `fastFailMs` |
 
 ## Edge params (`EdgeParams`)

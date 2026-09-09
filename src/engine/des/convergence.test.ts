@@ -359,6 +359,32 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('identity provider: session-cache blended service tracks between engines', () => {
+    const d = design(
+      [
+        node('c', 'client'),
+        node('gw', 'apiGateway', { capacityRps: 50000, rateLimitRps: 50000, authLatencyMs: 1, authErrorRate: 0 }),
+        node('idp', 'identityProvider', {
+          introspectMs: 8,
+          tokenIssueMs: 25,
+          issueRatio: 0.15,
+          sessionCacheHitRatio: 0.6,
+          poolSize: 32,
+          providerErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 'gw'), edge('e2', 'gw', 'idp')],
+      3000,
+    );
+    const sim = measure(d, 120, 400);
+    const a = solve(d).perNode.idp.metrics;
+    const s = sim.perNode.idp;
+    expect(a.rho).toBeGreaterThan(0.3);
+    expect(a.rho).toBeLessThan(0.85);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.25);
+  });
+
   it('coordination service: quorum-write blend tracks between engines', () => {
     // 5-node ensemble, 40% writes → each write waits for 3 acks; poolSize 32.
     const d = design(
