@@ -21,6 +21,7 @@ fraction continues, the rest short-circuits), **sink** (nothing continues).
 | `sqlDatabase` | data | sink | see below | `architecture`, `engine`, `queryTimeMs`, `poolSize` / `capacityRps`, `readRatio`, `readReplicas` / `primaries` / `shards`, `replicationLagMs`, `keyDistribution` |
 | `queue` | messaging | passthrough | M/M/1 at `brokerThroughputRps`; the queue *is* the buffer; one consumer takes each message | `brokerThroughputRps`, `enqueueLatencyMs`, `partitions`, `retentionSec` |
 | `pubsubTopic` | messaging | replicate | M/M/1 at `throughputRps`; **fans out** — every consumer group gets the full stream | `throughputRps`, `partitions`, `consumerGroups`, `retentionSec`, `enqueueLatencyMs` |
+| `cdcConnector` | messaging | branch | change tap: `captureRatio` of inflow → topic, `lagMs` behind; wire `app → cdcConnector → topic` | `captureRatio`, `lagMs`, `maxChangeRps` |
 | `worker` | compute | replicate | M/M/c/K per replica; `c` from vCPU × parallelism vs RAM | `jobTimeMs`, `vcpus`, `ramGB`, `parallelPerVcpu`, `replicas`, `queueLimit` |
 | `objectStore` | data | sink | M/M/1 at `opsRps` | `opLatencyMs`, `opsRps` |
 | `externalService` | external | sink | rate-limited M/M/1 with jitter | `latencyMs`, `jitterMs`, `rateLimitRps`, `errorRate`, `timeoutSec` |

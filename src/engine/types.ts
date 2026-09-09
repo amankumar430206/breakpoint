@@ -21,7 +21,8 @@ export type ComponentType =
   | 'circuitBreaker'
   | 'apiGateway'
   | 'pubsubTopic'
-  | 'dbProxy';
+  | 'dbProxy'
+  | 'cdcConnector';
 
 export interface Vec2 {
   x: number;

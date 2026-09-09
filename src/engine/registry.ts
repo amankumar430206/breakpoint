@@ -14,6 +14,7 @@ import { circuitBreakerModel } from './components/circuitBreaker';
 import { apiGatewayModel } from './components/apiGateway';
 import { pubsubTopicModel } from './components/pubsubTopic';
 import { dbProxyModel } from './components/dbProxy';
+import { cdcConnectorModel } from './components/cdcConnector';
 
 const MODELS: Record<string, ComponentModel> = {};
 for (const m of [
@@ -31,6 +32,7 @@ for (const m of [
   apiGatewayModel,
   pubsubTopicModel,
   dbProxyModel,
+  cdcConnectorModel,
 ]) {
   MODELS[m.type] = m;
 }
