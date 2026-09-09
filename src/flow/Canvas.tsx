@@ -9,26 +9,19 @@ import {
   type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { ComponentType } from '@/engine';
+import { allModels, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useThemeStore } from '@/store/themeStore';
 import { ComponentNode } from './nodes/ComponentNode';
 import { FlowEdge } from './edges/FlowEdge';
 import { ContextMenu, type MenuState } from './ContextMenu';
 
-const nodeTypes: NodeTypes = {
-  client: ComponentNode,
-  loadBalancer: ComponentNode,
-  apiServer: ComponentNode,
-  cache: ComponentNode,
-  sqlDatabase: ComponentNode,
-  queue: ComponentNode,
-  worker: ComponentNode,
-  cdn: ComponentNode,
-  objectStore: ComponentNode,
-  externalService: ComponentNode,
-  circuitBreaker: ComponentNode,
-};
+// Every registered component renders through the one ComponentNode — derive the
+// map from the registry so a new component never falls back to React Flow's
+// (unthemed, white) default node.
+const nodeTypes: NodeTypes = Object.fromEntries(
+  allModels().map((m) => [m.type, ComponentNode]),
+);
 
 const edgeTypes: EdgeTypes = { flow: FlowEdge };
 const DEFAULT_EDGE_OPTIONS = { type: 'flow' };
