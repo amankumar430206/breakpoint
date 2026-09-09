@@ -359,6 +359,39 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('search cluster: aggregate ρ and latency track between engines at low load', () => {
+    // uniform keys, lightly loaded — scatter-gather ≈ a single shard service, so
+    // the per-shard analytical model and the DES aggregate station agree.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', { serviceTimeMs: 0.5, concurrency: 128, replicas: 1, intrinsicErrorRate: 0 }),
+        node('es', 'searchIndex', {
+          shards: 4,
+          replicas: 1,
+          queryTimeMs: 40,
+          poolSize: 20,
+          readRatio: 1,
+          refreshIntervalSec: 1,
+          coordinatorMs: 2,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'es')],
+      500,
+    );
+    const sim = measure(d, 120, 500);
+    const a = solve(d).perNode.es.metrics;
+    const s = sim.perNode.es;
+    // both engines see a lightly-loaded cluster (they scale ρ differently — the
+    // analytical model is per-shard, the DES aggregates slots — so just check
+    // both are comfortably under load)…
+    expect(a.rho).toBeLessThan(0.4);
+    expect(s.rho).toBeLessThan(0.4);
+    // …and the query latency (service + coordinator, no queueing) agrees
+    expect(rel(s.latency.mean, a.latency.mean)).toBeLessThan(0.25);
+  });
+
   it('serverless: cold-start latency and concurrency throttling track between engines', () => {
     // ~30 ms warm + 20% cold at +200 ms ⇒ ~70 ms effective; 300 req/s × 70 ms
     // ⇒ ~21 concurrent, a hair under the 24 ceiling → a little throttling.

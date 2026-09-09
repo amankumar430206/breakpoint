@@ -23,7 +23,8 @@ export type ComponentType =
   | 'pubsubTopic'
   | 'dbProxy'
   | 'cdcConnector'
-  | 'serverlessFn';
+  | 'serverlessFn'
+  | 'searchIndex';
 
 export interface Vec2 {
   x: number;

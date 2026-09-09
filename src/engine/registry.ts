@@ -15,6 +15,7 @@ import { apiGatewayModel } from './components/apiGateway';
 import { pubsubTopicModel } from './components/pubsubTopic';
 import { dbProxyModel } from './components/dbProxy';
 import { cdcConnectorModel } from './components/cdcConnector';
+import { searchIndexModel } from './components/searchIndex';
 import { serverlessFnModel } from './components/serverlessFn';
 
 const MODELS: Record<string, ComponentModel> = {};
@@ -35,6 +36,7 @@ for (const m of [
   dbProxyModel,
   cdcConnectorModel,
   serverlessFnModel,
+  searchIndexModel,
 ]) {
   MODELS[m.type] = m;
 }
