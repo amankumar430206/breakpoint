@@ -61,6 +61,7 @@ service time and changes what binds first (`DB_ENGINES` in `sqlDatabase.ts`):
 | `dynamodb` | 0.8 | 1.0 | throughput | AP | capacity units; hot-partition risk |
 | `redis` | 0.15 | 0.2 | throughput | AP | in-memory; durability trade-off |
 | `cockroachdb` | 1.1 | 1.3 | pool | CP | +consensus latency on writes; scale-out built in |
+| `prometheus` / `influxdb` / `timescale` | 1.2–2.0 | 0.08–0.25 | throughput | AP | time-series: ingest is nearly free, range/downsample reads cost more |
 
 Pool engines size on `poolSize · μ`; throughput engines size on `capacityRps`.
 

@@ -25,7 +25,10 @@ export type DbEngine =
   | 'cassandra'
   | 'dynamodb'
   | 'redis'
-  | 'cockroachdb';
+  | 'cockroachdb'
+  | 'prometheus'
+  | 'influxdb'
+  | 'timescale';
 
 export interface DbEngineSpec {
   label: string;
@@ -133,6 +136,45 @@ export const DB_ENGINES: Record<DbEngine, DbEngineSpec> = {
     note: 'Distributed SQL — SQL semantics kept; every write pays a Raft consensus round-trip; horizontal scale is built in; CP.',
     docHref: 'concepts.md#distributed-sql',
   },
+  prometheus: {
+    label: 'Prometheus',
+    family: 'time-series',
+    readCostFactor: 2,
+    writeCostFactor: 0.08,
+    concurrencyModel: 'throughput',
+    capDefault: 'AP',
+    nativeSharding: true,
+    quorumWrites: false,
+    writeLatencyAddMs: 0,
+    note: 'Time-series — scrape ingest is almost free; PromQL range queries over many series are the expensive path; scales by federation / sharding.',
+    docHref: 'concepts.md#time-series',
+  },
+  influxdb: {
+    label: 'InfluxDB',
+    family: 'time-series',
+    readCostFactor: 1.4,
+    writeCostFactor: 0.1,
+    concurrencyModel: 'throughput',
+    capDefault: 'AP',
+    nativeSharding: true,
+    quorumWrites: false,
+    writeLatencyAddMs: 0,
+    note: 'Time-series — line-protocol writes batch cheaply (TSM engine); range + downsampling reads cost more; throughput-bound.',
+    docHref: 'concepts.md#time-series',
+  },
+  timescale: {
+    label: 'TimescaleDB',
+    family: 'time-series',
+    readCostFactor: 1.2,
+    writeCostFactor: 0.25,
+    concurrencyModel: 'throughput',
+    capDefault: 'AP',
+    nativeSharding: true,
+    quorumWrites: false,
+    writeLatencyAddMs: 0,
+    note: 'Time-series on Postgres — hypertable chunking + compression make writes cheap; keeps SQL for the read side.',
+    docHref: 'concepts.md#time-series',
+  },
 };
 
 const engineOf = (params: Record<string, unknown>): DbEngineSpec =>
@@ -192,7 +234,18 @@ export const sqlDatabaseModel: ComponentModel = {
       .enum(['single', 'primary-replica', 'multi-primary', 'sharded'])
       .default('primary-replica'),
     engine: z
-      .enum(['postgres', 'mysql', 'mongodb', 'cassandra', 'dynamodb', 'redis', 'cockroachdb'])
+      .enum([
+        'postgres',
+        'mysql',
+        'mongodb',
+        'cassandra',
+        'dynamodb',
+        'redis',
+        'cockroachdb',
+        'prometheus',
+        'influxdb',
+        'timescale',
+      ])
       .default('postgres'),
     queryTimeMs: z.number().positive().max(60000).default(8),
     poolSize: z.number().int().positive().max(10000).default(20),

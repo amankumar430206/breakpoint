@@ -228,6 +228,17 @@ Keeps SQL and serializable transactions while scaling horizontally. Every write
 carries a **consensus round-trip** (a fixed latency add), so it is **CP** and
 write-latency-sensitive, but you stop hand-rolling sharding.
 
+<a id="time-series"></a>
+
+### Time-series (Prometheus, InfluxDB, TimescaleDB)
+
+Append-only metrics / events keyed by time. Writes are **almost free** — batched
+appends to a log-structured or column-chunked store. The cost moves to the read
+side: range queries and downsampling scan many series. **Throughput-bound**
+(ingest points/sec), not pool-bound; scales by federation / sharding on the
+series key. Retention + rollups keep the working set bounded. Use it for metrics,
+IoT, event analytics — not for anything you need to update in place.
+
 ---
 
 ## References

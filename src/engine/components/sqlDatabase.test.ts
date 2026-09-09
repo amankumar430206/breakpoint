@@ -143,6 +143,22 @@ describe('sqlDatabase — architectures', () => {
     expect(m.fieldVisible!('capacityRps', { engine: 'postgres' })).toBe(false);
   });
 
+  it('time-series engines soak up a write-heavy ingest a same-capacity postgres cannot', () => {
+    const load = 25_000;
+    const writeHeavy = { architecture: 'single', queryTimeMs: 1, readRatio: 0.1 } as const;
+    const pg = solve({ ...writeHeavy, engine: 'postgres', poolSize: 10 }, load); // cap ≈ 10k
+    const prom = solve({ ...writeHeavy, engine: 'prometheus', capacityRps: 10_000 }, load);
+    expect(pg.metrics.overloaded).toBe(true);
+    expect(prom.metrics.overloaded).toBe(false);
+
+    // but a read (range-query) heavy mix hits Prometheus' read amplification
+    const readHeavy = solve(
+      { architecture: 'single', queryTimeMs: 1, readRatio: 0.9, engine: 'prometheus', capacityRps: 10_000 },
+      load,
+    );
+    expect(readHeavy.metrics.rho).toBeGreaterThan(prom.metrics.rho * 2);
+  });
+
   it('engine defaults to postgres and leaves the pool model untouched', () => {
     const withEngine = solve({ architecture: 'single', engine: 'postgres', queryTimeMs: 5, poolSize: 20 }, 2000);
     const noEngine = solve({ architecture: 'single', queryTimeMs: 5, poolSize: 20 }, 2000);
