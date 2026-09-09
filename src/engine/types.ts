@@ -25,7 +25,8 @@ export type ComponentType =
   | 'cdcConnector'
   | 'serverlessFn'
   | 'searchIndex'
-  | 'analyticsDb';
+  | 'analyticsDb'
+  | 'vectorDb';
 
 export interface Vec2 {
   x: number;

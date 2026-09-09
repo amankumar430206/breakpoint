@@ -17,6 +17,7 @@ import { dbProxyModel } from './components/dbProxy';
 import { cdcConnectorModel } from './components/cdcConnector';
 import { searchIndexModel } from './components/searchIndex';
 import { analyticsDbModel } from './components/analyticsDb';
+import { vectorDbModel } from './components/vectorDb';
 import { serverlessFnModel } from './components/serverlessFn';
 
 const MODELS: Record<string, ComponentModel> = {};
@@ -39,6 +40,7 @@ for (const m of [
   serverlessFnModel,
   searchIndexModel,
   analyticsDbModel,
+  vectorDbModel,
 ]) {
   MODELS[m.type] = m;
 }

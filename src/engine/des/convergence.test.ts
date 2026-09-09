@@ -359,6 +359,35 @@ describe('DES ↔ analytical convergence (stationary load)', () => {
     expect(Math.abs(sim.perNode.gw.dropRate - a.perNode.gw.metrics.dropRate)).toBeLessThan(0.08);
   });
 
+  it('vector DB: HNSW query slots track between engines', () => {
+    // HNSW ~4 ms/op, 4 slots ⇒ ~1000 ops/s; offer 600 ⇒ ρ ≈ 0.6.
+    const d = design(
+      [
+        node('c', 'client'),
+        node('s', 'apiServer', { serviceTimeMs: 0.5, concurrency: 128, replicas: 1, intrinsicErrorRate: 0 }),
+        node('v', 'vectorDb', {
+          indexType: 'hnsw',
+          queryTimeMs: 4,
+          dimensions: 768,
+          vectorCount: 2_000_000,
+          ramGB: 32,
+          writeRatio: 0.1,
+          poolSize: 4,
+          intrinsicErrorRate: 0,
+        }),
+      ],
+      [edge('e1', 'c', 's'), edge('e2', 's', 'v')],
+      600,
+    );
+    const sim = measure(d, 120, 500);
+    const a = solve(d).perNode.v.metrics;
+    const s = sim.perNode.v;
+    expect(a.rho).toBeGreaterThan(0.45);
+    expect(a.rho).toBeLessThan(0.75);
+    expect(Math.abs(s.rho - a.rho)).toBeLessThan(0.08);
+    expect(rel(s.latency.p50, a.latency.p50)).toBeLessThan(0.3);
+  });
+
   it('data warehouse: slot-bound M/M/c/K at second-scale service tracks between engines', () => {
     // 8 slots · 2 s scans ⇒ 4 queries/s capacity; offer 2.5 ⇒ ρ ≈ 0.625.
     const d = design(
