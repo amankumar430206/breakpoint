@@ -46,6 +46,25 @@ function specOf(
   return { line, title };
 }
 
+/** The param that names a node's "engine / flavour" — a picked implementation
+ *  that isn't obvious from the node label once it's renamed (an `orders` box is
+ *  still Postgres). Shown as a chip in the header. */
+const KIND_PARAM: Partial<Record<ComponentType, string>> = {
+  sqlDatabase: 'engine',
+};
+
+function kindLabelOf(
+  type: ComponentType,
+  p: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+): string | null {
+  const key = KIND_PARAM[type];
+  if (!key) return null;
+  // Presets that keep the default engine don't carry the key — fall back to it.
+  const v = p[key] ?? defaults[key];
+  return typeof v === 'string' && v ? v : null;
+}
+
 /** How many parallel instances this node represents, plus a human label. */
 function replicasOf(type: ComponentType, p: Record<string, unknown>): { count: number; label?: string } {
   if (type === 'apiServer') {
@@ -112,6 +131,10 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
     [t, params],
   );
   const spec = useMemo(() => specOf(t, params), [t, params]);
+  const kindLabel = useMemo(
+    () => kindLabelOf(t, params, model.defaultParams),
+    [t, params, model],
+  );
 
   const bump = useCallback(
     (delta: number) => {
@@ -247,6 +270,14 @@ function ComponentNodeInner({ id, type, data, selected }: NodeProps) {
             <ComponentIcon type={t} />
           </span>
           <span className="truncate text-[13px] font-medium">{d.label}</span>
+          {kindLabel && (
+            <span
+              className="shrink-0 rounded bg-[var(--tm-chip)] px-1 text-[9px] font-medium text-[var(--tm-text-dim)]"
+              title={`Engine: ${kindLabel}`}
+            >
+              {kindLabel}
+            </span>
+          )}
           {faultKind && (
             <span
               className="shrink-0 rounded px-1 text-[9px] font-semibold uppercase"

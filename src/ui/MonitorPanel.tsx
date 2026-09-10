@@ -160,6 +160,10 @@ function MonitorPanelInner() {
     </div>
   );
 
+  // Taller in the sidebar (the condensed default read poorly); the scroll
+  // container absorbs the overflow as more charts are added.
+  const chartH = full ? 240 : 190;
+
   const charts = (
     <>
       <Panel
@@ -169,7 +173,7 @@ function MonitorPanelInner() {
           ['served', C_SERVED],
         ]}
       >
-        <UPlotChart data={throughput} series={tputSeries} height={130} fmtY={(v) => fmtRps(v)} />
+        <UPlotChart data={throughput} series={tputSeries} height={chartH} fmtY={(v) => fmtRps(v)} />
       </Panel>
       <Panel
         title="Latency p99 (ms)"
@@ -182,13 +186,13 @@ function MonitorPanelInner() {
             : [['system', C_SYS_P99]]
         }
       >
-        <UPlotChart data={latency} series={latSeries} height={130} fmtY={(v) => `${Math.round(v)}`} />
+        <UPlotChart data={latency} series={latSeries} height={chartH} fmtY={(v) => `${Math.round(v)}`} />
       </Panel>
       <Panel title="Utilisation (%) — CPU / RAM / busiest tier" legend={utilLegend}>
         <UPlotChart
           data={utilisation}
           series={utilSeries}
-          height={130}
+          height={chartH}
           fmtY={(v) => `${Math.round(v)}`}
         />
       </Panel>
