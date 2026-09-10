@@ -68,12 +68,21 @@ function PaletteInner() {
 
   return (
     <aside className="w-52 shrink-0 overflow-y-auto border-r border-[var(--tm-border)] bg-[var(--tm-panel)] p-2">
-      <div className="mb-2 flex items-center justify-between px-1">
+      <div className="mb-2 flex items-center gap-1.5 px-1">
         <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">Components</span>
+        <a
+          href="../wiki/"
+          target="_blank"
+          rel="noreferrer"
+          title="System Design Wiki — what each component is, when to use it"
+          className="text-[10px] text-[var(--tm-accent-soft)] no-underline hover:underline"
+        >
+          learn ↗
+        </a>
         <button
           onClick={toggle}
           title="Hide components"
-          className="rounded px-1 text-xs text-[var(--tm-text-faint)] hover:bg-[var(--tm-btn)] hover:text-[var(--tm-text)]"
+          className="ml-auto rounded px-1 text-xs text-[var(--tm-text-faint)] hover:bg-[var(--tm-btn)] hover:text-[var(--tm-text)]"
         >
           ‹
         </button>

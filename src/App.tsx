@@ -5,6 +5,7 @@ import { Canvas } from '@/flow/Canvas';
 import { TopBar } from '@/ui/TopBar';
 import { ScenarioBar } from '@/ui/ScenarioBar';
 import { Palette } from '@/ui/Palette';
+import { ConceptPanel } from '@/ui/ConceptPanel';
 import { RightPanel } from '@/ui/RightPanel';
 import { EmptyState } from '@/ui/EmptyState';
 import { BottleneckPanel } from '@/ui/BottleneckPanel';
@@ -112,6 +113,7 @@ export function App() {
               </div>
             )}
           </main>
+          {nodeCount > 0 && <ConceptPanel />}
           {nodeCount > 0 && <RightPanel />}
         </div>
       </div>

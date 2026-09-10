@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { deriveConcurrency, getModel } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
@@ -6,11 +6,6 @@ import { useViewStore } from '@/store/viewStore';
 import { useProbeStore } from '@/store/probeStore';
 import { CALIBRATABLE_TYPES } from '@/live/calibration';
 import { ProbeTargetForm } from './ProbeTargetForm';
-
-// The wiki content is a sizeable chunk; only pull it when the Concept tab opens.
-const ComponentDocView = lazy(() =>
-  import('./wiki/DocView').then((m) => ({ default: m.ComponentDocView })),
-);
 import {
   chipValue,
   describeSchema,
@@ -157,7 +152,6 @@ function NodeInspector({
   const m = useViewStore((s) => s.perNode[nodeId]);
   const explain = useViewStore((s) => s.explains[nodeId]);
   const model = getModel(type);
-  const [sub, setSub] = useState<'params' | 'concept'>('params');
   const fields = useMemo(
     () =>
       describeSchema(model.paramSchema)
@@ -195,33 +189,7 @@ function NodeInspector({
         />
       </div>
 
-      <div className="flex overflow-hidden rounded border border-[var(--tm-border)] text-[11px]">
-        {(['params', 'concept'] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setSub(s)}
-            className="flex-1 py-1"
-            style={{
-              background: sub === s ? 'var(--tm-chip-active)' : 'var(--tm-panel-2)',
-              color: sub === s ? 'var(--tm-accent-soft)' : 'var(--tm-text-dim)',
-            }}
-          >
-            {s === 'params' ? 'Params' : 'Concept'}
-          </button>
-        ))}
-      </div>
-
-      {sub === 'concept' && (
-        <div className="rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)]">
-          <Suspense
-            fallback={<div className="p-3 text-[11px] text-[var(--tm-text-faint)]">Loading…</div>}
-          >
-            <ComponentDocView type={type} dense />
-          </Suspense>
-        </div>
-      )}
-
-      {sub === 'params' && m && (
+      {m && (
         <div className="tabnum grid grid-cols-2 gap-1 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px]">
           <Metric label="utilization ρ" value={m.rho.toFixed(3)} alert={m.rho >= 0.98} />
           {cpuPct !== null && (
@@ -244,23 +212,21 @@ function NodeInspector({
         </div>
       )}
 
-      {sub === 'params' && (
-        <div className="flex flex-col gap-2.5">
-          {fields.map((f) => (
-            <Field
-              key={f.key}
-              f={f}
-              value={params[f.key] ?? f.default}
-              doc={model.paramDocs[f.key]}
-              onChange={(v) => onParam({ [f.key]: v })}
-            />
-          ))}
-        </div>
-      )}
+      <div className="flex flex-col gap-2.5">
+        {fields.map((f) => (
+          <Field
+            key={f.key}
+            f={f}
+            value={params[f.key] ?? f.default}
+            doc={model.paramDocs[f.key]}
+            onChange={(v) => onParam({ [f.key]: v })}
+          />
+        ))}
+      </div>
 
-      {sub === 'params' && CALIBRATABLE_TYPES.includes(type) && <ProbeSection nodeId={nodeId} />}
+      {CALIBRATABLE_TYPES.includes(type) && <ProbeSection nodeId={nodeId} />}
 
-      {sub === 'params' && explain?.length ? (
+      {explain?.length ? (
         <div className="flex flex-col gap-1.5 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px] text-[var(--tm-text-dim)]">
           <div className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">why</div>
           {explain.map((e, i) => (

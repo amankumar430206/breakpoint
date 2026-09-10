@@ -90,8 +90,18 @@ function EmptyStateInner({
               <span className="font-medium text-[var(--tm-text)]">▶ Play</span> to push real traffic
               through and find the breaking point.
             </p>
+            <a
+              href="../wiki/"
+              className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--tm-accent-soft)] no-underline hover:underline"
+            >
+              New to system design? Read the wiki — every component, when to use it, what it pairs
+              with →
+            </a>
           </div>
           <div className="flex shrink-0 gap-2">
+            <a href="../wiki/" className={`${ghostBtn} no-underline`}>
+              Wiki
+            </a>
             <button onClick={blank} className={ghostBtn}>
               Blank canvas
             </button>
