@@ -61,7 +61,7 @@ function kindLabelOf(
   const key = KIND_PARAM[type];
   if (!key) return null;
   // Presets that keep the default engine don't carry the key — fall back to it.
-  const v = p[key] ?? defaults[key];
+  const v = p?.[key] ?? defaults?.[key];
   return typeof v === 'string' && v ? v : null;
 }
 
