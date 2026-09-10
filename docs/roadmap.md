@@ -27,8 +27,15 @@
 - Presets, random generator, share URL, JSON / PNG / SVG / report export
 - Browser-local project library, resizable/fullscreen metrics window
 - Read-only embeddable widget (`embed.html`) + "copy embed code"
+- **Live Probe** — measure a real local endpoint, compare to the model, calibrate
+  a node from the run (localhost-only, transient; see `docs/live-probe.md`)
 
 ## Planned
+
+- Live Probe sidecar (`npx breakpoint-probe`) — higher req/s, no CORS, public
+  targets; auto-sweep knee-finder; prediction-vs-reality advisor rule
+- Import from telemetry — Prometheus / OpenTelemetry service graph / CSV
+  (partially addressed by Live Probe calibration)
 
 - **Failure / chaos injection** — kill a node, add latency, degrade, partition an
   edge; timed or manual; graded through the same audit
@@ -38,4 +45,3 @@
 - M/G/1 service-time distributions (Pollaczek–Khinchine)
 - Compare mode — two designs, one scenario, metric diff
 - Cost model + SLO / error-budget panel
-- Import from telemetry — Prometheus / OpenTelemetry service graph / CSV

@@ -31,7 +31,7 @@ function ChaosBarInner() {
   };
 
   return (
-    <div className="pointer-events-auto absolute bottom-4 right-4 z-10 w-[240px] rounded-xl border border-[var(--tm-crit-border)] bg-[var(--tm-panel)]/95 shadow-xl">
+    <div className="pointer-events-auto w-[240px] rounded-xl border border-[var(--tm-crit-border)] bg-[var(--tm-panel)]/95 shadow-xl">
       <div className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[var(--tm-crit-fg)]">
         <span>⚡ Chaos active</span>
         <button

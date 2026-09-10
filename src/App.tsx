@@ -9,10 +9,12 @@ import { RightPanel } from '@/ui/RightPanel';
 import { EmptyState } from '@/ui/EmptyState';
 import { BottleneckPanel } from '@/ui/BottleneckPanel';
 import { ChaosBar } from '@/ui/ChaosBar';
+import { CalibrationBar } from '@/ui/CalibrationBar';
 import { AutoSave } from '@/ui/AutoSave';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useSimWorker } from '@/store/simWorker';
+import { useProbe } from '@/live/useProbe';
 import { useThemeStore } from '@/store/themeStore';
 import { fromDesign } from '@/lib/design';
 import { designFromHash } from '@/lib/shareUrl';
@@ -31,6 +33,7 @@ export function App() {
   const theme = useThemeStore((s) => s.theme);
 
   useSimWorker();
+  useProbe();
 
   const applyDesign = useCallback(
     (design: SystemDesign, id: string | null = null) => {
@@ -102,7 +105,12 @@ export function App() {
             ) : (
               <BottleneckPanel />
             )}
-            {nodeCount > 0 && <ChaosBar />}
+            {nodeCount > 0 && (
+              <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
+                <CalibrationBar />
+                <ChaosBar />
+              </div>
+            )}
           </main>
           {nodeCount > 0 && <RightPanel />}
         </div>

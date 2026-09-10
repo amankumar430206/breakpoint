@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { applyFaults, type Fault } from '@/engine';
+import { applyCalibration, type CalibrationMap } from '@/live/calibration';
 import type { FromWorker, ToWorker } from '@/worker/protocol';
 import { toDesign } from '@/lib/design';
 import { useDesignStore } from './designStore';
+import { useProbeStore } from './probeStore';
 import { useSimStore } from './simStore';
 import { useViewStore } from './viewStore';
 
@@ -15,6 +17,7 @@ function designSignature(
   scenario: unknown,
   seed: number,
   faults: Fault[],
+  calibration: CalibrationMap,
 ): string {
   const n = nodes
     .map((x) => `${x.id}:${x.type}:${JSON.stringify(x.data.params)}:${x.data.zone ?? ''}`)
@@ -28,7 +31,7 @@ function designSignature(
     .map((x) => `${x.id}:${x.magnitude ?? ''}`)
     .sort()
     .join('|');
-  return `${n}#${e}#${JSON.stringify(scenario)}#${seed}#${f}`;
+  return `${n}#${e}#${JSON.stringify(scenario)}#${seed}#${f}#${JSON.stringify(calibration)}`;
 }
 
 /**
@@ -45,6 +48,7 @@ export function useSimWorker(): void {
   const speed = useSimStore((s) => s.speed);
   const running = useSimStore((s) => s.running);
   const faults = useSimStore((s) => s.faults);
+  const calibration = useProbeStore((s) => s.calibration);
   const pause = useSimStore((s) => s.pause);
 
   useEffect(() => {
@@ -73,8 +77,8 @@ export function useSimWorker(): void {
   const send = (msg: ToWorker) => workerRef.current?.postMessage(msg);
 
   const signature = useMemo(
-    () => designSignature(nodes, edges, scenario, seed, faults),
-    [nodes, edges, scenario, seed, faults],
+    () => designSignature(nodes, edges, scenario, seed, faults, calibration),
+    [nodes, edges, scenario, seed, faults, calibration],
   );
 
   // Debounce re-init so dragging a slider coalesces into one recompute.
@@ -83,7 +87,10 @@ export function useSimWorker(): void {
       useViewStore.getState().setComputing(true);
       send({
         type: 'init',
-        design: applyFaults(toDesign(nodes, edges, { scenario, seed, speed }), faults),
+        design: applyCalibration(
+          applyFaults(toDesign(nodes, edges, { scenario, seed, speed }), faults),
+          calibration,
+        ),
         running,
       });
     }, 90);

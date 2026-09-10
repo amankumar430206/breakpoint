@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { deriveConcurrency, getModel } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
+import { useProbeStore } from '@/store/probeStore';
+import { CALIBRATABLE_TYPES } from '@/live/calibration';
+import { ProbeTargetForm } from './ProbeTargetForm';
 import {
   chipValue,
   describeSchema,
@@ -221,6 +224,8 @@ function NodeInspector({
         ))}
       </div>
 
+      {CALIBRATABLE_TYPES.includes(type) && <ProbeSection nodeId={nodeId} />}
+
       {explain?.length ? (
         <div className="flex flex-col gap-1.5 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px] text-[var(--tm-text-dim)]">
           <div className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">why</div>
@@ -239,6 +244,52 @@ function NodeInspector({
       >
         Delete component
       </button>
+    </div>
+  );
+}
+
+/** "Live probe" launcher — measure this node's real endpoint. Run controls +
+ *  charts live in the Monitor panel; this is just config + calibration status. */
+function ProbeSection({ nodeId }: { nodeId: string }) {
+  const [editing, setEditing] = useState(false);
+  const target = useProbeStore((s) => s.targets[nodeId]);
+  const calibrated = useProbeStore((s) => s.calibration[nodeId]);
+  const clearCalibration = useProbeStore((s) => s.clearCalibration);
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2 text-[11px] text-[var(--tm-text-dim)]">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-wide text-[var(--tm-text-faint)]">
+          Live probe
+        </span>
+        <button
+          onClick={() => setEditing(true)}
+          className="ml-auto text-[var(--tm-accent-soft)] hover:underline"
+        >
+          {target?.url ? 'Edit endpoint' : 'Configure endpoint'}
+        </button>
+      </div>
+      {target?.url ? (
+        <p className="tabnum truncate text-[var(--tm-text-dim)]" title={target.url}>
+          {target.method} {target.url}
+        </p>
+      ) : (
+        <p className="text-[var(--tm-text-faint)]">
+          Point this node at a real local endpoint, then run the probe from the Monitor panel.
+        </p>
+      )}
+      {calibrated && (
+        <div className="flex items-center gap-2 text-[10px] text-[var(--tm-good-fg)]">
+          <span>● model calibrated from a measured run</span>
+          <button
+            onClick={() => clearCalibration(nodeId)}
+            className="text-[var(--tm-text-faint)] hover:text-[var(--tm-text)]"
+          >
+            reset
+          </button>
+        </div>
+      )}
+      {editing && <ProbeTargetForm nodeId={nodeId} onClose={() => setEditing(false)} />}
     </div>
   );
 }

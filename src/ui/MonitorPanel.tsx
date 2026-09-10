@@ -4,8 +4,10 @@ import { deriveConcurrency, type ComponentType } from '@/engine';
 import { useDesignStore } from '@/store/designStore';
 import { useSimStore } from '@/store/simStore';
 import { useViewStore } from '@/store/viewStore';
+import { useProbeStore } from '@/store/probeStore';
 import { fmtDuration, fmtPct, fmtRps } from '@/lib/format';
 import { UPlotChart } from './UPlotChart';
+import { ProbeStrip } from './ProbeStrip';
 import { SystemGrade } from './SystemGrade';
 
 const C_OFFERED = '#7d8796';
@@ -15,6 +17,13 @@ const C_NODE_P99 = '#8b5cf6';
 const C_MAX_RHO = '#e5484d';
 const C_NODE_CPU = '#3fb950';
 const C_NODE_MEM = '#d29922';
+
+const C_MEASURED = '#2dd4bf'; // teal — "real"
+const C_P50 = '#3fb950';
+const C_P90 = '#d29922';
+const C_MODEL_REF = '#8b5cf6'; // dashed model reference line
+
+type ProbeView = 'sim' | 'measured' | 'compare';
 
 const COMPUTE_TYPES = new Set<ComponentType>(['apiServer', 'worker']);
 
@@ -38,6 +47,7 @@ function utilFactors(
  *  the charts up into an overlay. */
 function MonitorPanelInner() {
   const [full, setFull] = useState(false);
+  const [view, setView] = useState<ProbeView>('sim');
 
   const series = useViewStore((s) => s.series);
   const system = useViewStore((s) => s.system);
@@ -50,6 +60,20 @@ function MonitorPanelInner() {
   const play = useSimStore((s) => s.play);
   const pause = useSimStore((s) => s.pause);
   const reset = useSimStore((s) => s.reset);
+
+  const probeSeries = useProbeStore((s) => s.series);
+  const probeStatus = useProbeStore((s) => s.status);
+  const probeNodeId = useProbeStore((s) => s.activeNodeId);
+  const modelNodeP99 = useViewStore((s) => (probeNodeId ? s.perNode[probeNodeId]?.latency.p99 : undefined));
+  const modelNodeTput = useViewStore((s) => (probeNodeId ? s.perNode[probeNodeId]?.throughput : undefined));
+  const hasProbe = probeSeries.length > 0 || probeStatus === 'running';
+
+  // Jump to the measured view when a probe run starts; fall back to sim when the
+  // probe data is dismissed.
+  useEffect(() => {
+    if (probeStatus === 'running') setView('compare');
+    else if (probeStatus === 'idle') setView('sim');
+  }, [probeStatus]);
 
   useEffect(() => {
     setSeriesNode(selectedNodeId);
@@ -132,6 +156,65 @@ function MonitorPanelInner() {
   const last = series.length ? series[series.length - 1] : null;
   const hasData = series.length > 1;
 
+  // ---- Measured / Compare (Live Probe) chart data -------------------------
+  const mThroughput: uPlot.AlignedData = useMemo(() => {
+    const t = probeSeries.map((p) => p.t);
+    return [
+      t,
+      probeSeries.map((p) => p.achievedRps),
+      probeSeries.map((p) => (Number.isFinite(p.targetRps) ? p.targetRps : null)),
+      view === 'compare' && Number.isFinite(modelNodeTput)
+        ? probeSeries.map(() => modelNodeTput as number)
+        : [],
+    ];
+  }, [probeSeries, view, modelNodeTput]);
+
+  const mLatency: uPlot.AlignedData = useMemo(() => {
+    const t = probeSeries.map((p) => p.t);
+    return [
+      t,
+      probeSeries.map((p) => p.p50),
+      probeSeries.map((p) => p.p90),
+      probeSeries.map((p) => p.p99),
+      view === 'compare' && Number.isFinite(modelNodeP99)
+        ? probeSeries.map(() => (modelNodeP99 as number) * 1000)
+        : [],
+    ];
+  }, [probeSeries, view, modelNodeP99]);
+
+  const mErrors: uPlot.AlignedData = useMemo(() => {
+    const t = probeSeries.map((p) => p.t);
+    return [t, probeSeries.map((p) => p.errorRate * 100)];
+  }, [probeSeries]);
+
+  const mTputSeries: uPlot.Series[] = useMemo(() => {
+    const s: uPlot.Series[] = [
+      {},
+      { label: 'achieved', stroke: C_MEASURED, width: 1.5 },
+      { label: 'requested', stroke: C_OFFERED, width: 1, dash: [4, 4] },
+    ];
+    if (view === 'compare') s.push({ label: 'model', stroke: C_MODEL_REF, width: 1.5, dash: [6, 4] });
+    return s;
+  }, [view]);
+
+  const mLatSeries: uPlot.Series[] = useMemo(() => {
+    const s: uPlot.Series[] = [
+      {},
+      { label: 'p50', stroke: C_P50, width: 1.25 },
+      { label: 'p90', stroke: C_P90, width: 1.25 },
+      { label: 'p99', stroke: C_MEASURED, width: 1.75 },
+    ];
+    if (view === 'compare') s.push({ label: 'model p99', stroke: C_MODEL_REF, width: 1.5, dash: [6, 4] });
+    return s;
+  }, [view]);
+
+  const mErrSeries: uPlot.Series[] = useMemo(
+    () => [{}, { label: 'error rate', stroke: C_MAX_RHO, width: 1.5, fill: 'rgba(229,72,77,0.10)' }],
+    [],
+  );
+
+  const hasProbeData = probeSeries.length > 1;
+
   const utilLegend: [string, string][] = [['busiest tier', C_MAX_RHO]];
   if (factors) {
     utilLegend.push([trackedLabel ? `${trackedLabel} CPU` : 'node CPU', C_NODE_CPU]);
@@ -199,11 +282,75 @@ function MonitorPanelInner() {
     </>
   );
 
+  const measuredCharts = (
+    <>
+      <Panel
+        title="Throughput — measured (req/s)"
+        legend={
+          view === 'compare'
+            ? [
+                ['achieved', C_MEASURED],
+                ['requested', C_OFFERED],
+                ['model', C_MODEL_REF],
+              ]
+            : [
+                ['achieved', C_MEASURED],
+                ['requested', C_OFFERED],
+              ]
+        }
+      >
+        <UPlotChart data={mThroughput} series={mTputSeries} height={chartH} fmtY={(v) => fmtRps(v)} />
+      </Panel>
+      <Panel
+        title="Latency — measured (ms)"
+        legend={
+          view === 'compare'
+            ? [
+                ['p50', C_P50],
+                ['p90', C_P90],
+                ['p99', C_MEASURED],
+                ['model p99', C_MODEL_REF],
+              ]
+            : [
+                ['p50', C_P50],
+                ['p90', C_P90],
+                ['p99', C_MEASURED],
+              ]
+        }
+      >
+        <UPlotChart data={mLatency} series={mLatSeries} height={chartH} fmtY={(v) => `${Math.round(v)}`} />
+      </Panel>
+      <Panel title="Error rate — measured (%)" legend={[['errors', C_MAX_RHO]]}>
+        <UPlotChart data={mErrors} series={mErrSeries} height={chartH} fmtY={(v) => `${Math.round(v)}`} />
+      </Panel>
+    </>
+  );
+
+  const activeCharts = view === 'sim' ? charts : measuredCharts;
+  const activeHasData = view === 'sim' ? hasData : hasProbeData;
+
   const header = (
     <div className="flex items-center gap-2 border-b border-[var(--tm-border)] px-3 py-1.5 text-[11px] text-[var(--tm-text-dim)]">
       <SystemGrade />
-      {mode === 'live' && (
+      {mode === 'live' && view === 'sim' && (
         <span className="tabnum text-[var(--tm-text-faint)]">t = {simTime.toFixed(0)}s</span>
+      )}
+      {(hasProbe || probeStatus === 'done') && (
+        <div className="flex overflow-hidden rounded border border-[var(--tm-border-2)] text-[10px]">
+          {(['sim', 'measured', 'compare'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className="px-1.5 py-0.5"
+              style={{
+                background: view === v ? 'var(--tm-chip-active)' : 'transparent',
+                color: view === v ? 'var(--tm-text)' : 'var(--tm-text-faint)',
+              }}
+            >
+              {v === 'sim' ? 'Simulated' : v === 'measured' ? 'Measured' : 'Compare'}
+            </button>
+          ))}
+        </div>
       )}
       <button
         onClick={running ? pause : play}
@@ -232,11 +379,11 @@ function MonitorPanelInner() {
     return (
       <div className="fixed inset-0 z-40 flex flex-col bg-[var(--tm-panel)]">
         {header}
-        {kpis}
-        {hasData ? (
-          <div className="grid flex-1 grid-cols-2 gap-4 overflow-auto p-4">{charts}</div>
+        {view === 'sim' && kpis}
+        {activeHasData ? (
+          <div className="grid flex-1 grid-cols-2 gap-4 overflow-auto p-4">{activeCharts}</div>
         ) : (
-          <Waiting running={running} />
+          <Waiting view={view} running={running} />
         )}
       </div>
     );
@@ -245,22 +392,27 @@ function MonitorPanelInner() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {header}
-      {kpis}
-      {hasData ? (
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3">{charts}</div>
+      <ProbeStrip />
+      {view === 'sim' && kpis}
+      {activeHasData ? (
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3">{activeCharts}</div>
       ) : (
-        <Waiting running={running} />
+        <Waiting view={view} running={running} />
       )}
     </div>
   );
 }
 
-function Waiting({ running }: { running: boolean }) {
+function Waiting({ view, running }: { view: ProbeView; running: boolean }) {
+  const msg =
+    view !== 'sim'
+      ? 'Configure an endpoint and run the probe to see measured latency, throughput and errors.'
+      : running
+        ? 'Recording…'
+        : 'Press ▶ Play to record throughput, latency, utilisation and success over the run.';
   return (
     <div className="flex flex-1 items-center justify-center px-4 text-center text-[11px] text-[var(--tm-text-faint)]">
-      {running
-        ? 'Recording…'
-        : 'Press ▶ Play to record throughput, latency, utilisation and success over the run.'}
+      {msg}
     </div>
   );
 }
