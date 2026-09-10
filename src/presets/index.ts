@@ -38,3 +38,38 @@ export function getPreset(id: string): SystemDesign | undefined {
 }
 
 export const DEFAULT_PRESET_ID = 'url-shortener';
+
+/** Coarse grouping for the start screen. */
+export type PresetTag = 'basics' | 'web' | 'data' | 'events' | 'streaming';
+
+export const PRESET_META: Record<string, { tag: PresetTag; recommended?: boolean }> = {
+  starter: { tag: 'basics', recommended: true },
+  'single-box': { tag: 'basics', recommended: true },
+  'url-shortener': { tag: 'web' },
+  'public-api': { tag: 'web' },
+  'ecommerce-checkout': { tag: 'web' },
+  'saas-api': { tag: 'web' },
+  'streaming-cdn': { tag: 'streaming' },
+  'news-site': { tag: 'streaming' },
+  'social-feed': { tag: 'events' },
+  'event-driven-orders': { tag: 'events' },
+  'metrics-pipeline': { tag: 'data' },
+};
+
+/** Accent hues for the start-screen cards. Hard-coded (like `HEALTH_COLOR` in
+ *  `lib/format.ts`) so they read on both the light and dark grounds. */
+export const TAG_COLOR: Record<PresetTag, string> = {
+  basics: '#5b8def',
+  web: '#3fb950',
+  data: '#a371f7',
+  events: '#d29922',
+  streaming: '#2dd4bf',
+};
+
+export const TAG_LABEL: Record<PresetTag, string> = {
+  basics: 'Basics',
+  web: 'Web tier',
+  data: 'Data pipeline',
+  events: 'Event-driven',
+  streaming: 'Content / CDN',
+};

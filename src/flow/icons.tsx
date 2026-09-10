@@ -94,6 +94,40 @@ const ComponentIconInner = ({ type, size = 18 }: { type: ComponentType; size?: n
           <path d="M3 10h4l2-4 3 8 2-4h3" />
         </svg>
       );
+    case 'apiGateway':
+      return (
+        <svg {...p}>
+          <path d="M6 3 3 6v8l3 3M14 3l3 3v8l-3 3" />
+          <path d="M8 10h4m0 0-1.6-1.6M12 10l-1.6 1.6" />
+        </svg>
+      );
+    case 'dbProxy':
+      return (
+        <svg {...p}>
+          <path d="M3 5c0 1.4 2.7 2.5 5 2.5" />
+          <ellipse cx="13" cy="12" rx="4" ry="2" />
+          <path d="M9 12v3c0 1.1 1.8 2 4 2s4-.9 4-2v-3" />
+          <path d="M3 5v6c0 1.1 1.8 2 4 2M3 5c0-1.4 2.2-2.5 5-2.5" />
+        </svg>
+      );
+    case 'pubsubTopic':
+      return (
+        <svg {...p}>
+          <circle cx="5" cy="10" r="2" />
+          <circle cx="15" cy="5" r="2" />
+          <circle cx="15" cy="15" r="2" />
+          <path d="M7 9l6-3M7 11l6 3" />
+        </svg>
+      );
+    case 'cdcConnector':
+      return (
+        <svg {...p}>
+          <ellipse cx="6" cy="6" rx="3.5" ry="1.8" />
+          <path d="M2.5 6v4c0 1 1.6 1.8 3.5 1.8" />
+          <path d="M10 12h5m0 0-2-2m2 2-2 2" />
+          <path d="M15 6v8" />
+        </svg>
+      );
     default:
       return (
         <svg {...p}>

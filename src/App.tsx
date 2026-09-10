@@ -90,9 +90,9 @@ export function App() {
           onProjectSaved={setProjectId}
           onTitleChange={setTitle}
         />
-        <ScenarioBar />
+        {nodeCount > 0 && <ScenarioBar />}
         <div className="flex min-h-0 flex-1">
-          <Palette />
+          {nodeCount > 0 && <Palette />}
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <Canvas />
             {nodeCount === 0 ? (
