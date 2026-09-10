@@ -45,7 +45,7 @@ export const TopBar = memo(function TopBar({
   const cycleTheme = useThemeStore((s) => s.cycle);
 
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--tm-border)] bg-[var(--tm-panel)] px-4 py-2 text-sm">
+    <header className="flex items-center gap-x-3 overflow-x-auto border-b border-[var(--tm-border)] bg-[var(--tm-panel)] px-4 py-2 text-sm">
       <a
         href="../"
         className="flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--tm-text)] no-underline hover:opacity-80"
@@ -60,7 +60,7 @@ export const TopBar = memo(function TopBar({
         onFocus={(e) => e.target.select()}
         spellCheck={false}
         aria-label="Design name"
-        className="w-[18ch] shrink-0 rounded border border-transparent bg-transparent px-1 py-0.5 text-[var(--tm-text)] outline-none hover:border-[var(--tm-border)] focus:w-[24ch] focus:border-[var(--tm-accent)] focus:bg-[var(--tm-node)]"
+        className="w-[16ch] min-w-[8ch] shrink rounded border border-transparent bg-transparent px-1 py-0.5 text-[var(--tm-text)] outline-none hover:border-[var(--tm-border)] focus:w-[22ch] focus:border-[var(--tm-accent)] focus:bg-[var(--tm-node)]"
       />
       <select
         value=""
@@ -160,16 +160,17 @@ function LiveKpis() {
   const system = useViewStore((s) => s.system);
   const converged = useViewStore((s) => s.converged);
   const warnings = useViewStore((s) => s.warnings);
-  const mode = useViewStore((s) => s.mode);
-  const simTime = useViewStore((s) => s.simTime);
   const computing = useViewStore((s) => s.computing);
   const err = warnings.find((w) => w.level === 'error');
 
   return (
-    <div className="tabnum ml-auto flex shrink-0 items-center gap-3 pl-4 text-xs">
-      <span className="inline-block w-[6ch] text-right text-[var(--tm-text-faint)]">
-        {mode === 'live' ? `t=${simTime.toFixed(0)}s` : ''}
-      </span>
+    <div className="tabnum ml-auto flex shrink-0 items-center gap-2.5 pl-3 text-xs">
+      {computing && (
+        <span className="inline-flex items-center gap-1 text-[var(--tm-text-faint)]">
+          <Spinner size={11} />
+          solving…
+        </span>
+      )}
       <Kpi
         label="offered"
         value={fmtRps(system.offeredRps)}
@@ -192,14 +193,6 @@ function LiveKpis() {
         alert={system.successRate < 0.99}
         tip="Share of offered requests that got a good response. Drops (429/503) and errors both count against it."
       />
-      <span className="inline-flex w-[5rem] items-center justify-end gap-1 text-[var(--tm-text-faint)]">
-        {computing && (
-          <>
-            <Spinner size={11} />
-            solving…
-          </>
-        )}
-      </span>
       <span
         className="w-[4.5rem] shrink-0 rounded px-2 py-0.5 text-center text-[11px]"
         style={{
