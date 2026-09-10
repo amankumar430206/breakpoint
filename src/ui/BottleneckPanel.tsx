@@ -4,7 +4,7 @@ import { useViewStore } from '@/store/viewStore';
 import { HEALTH_COLOR } from '@/lib/format';
 import type { Advice } from '@/engine';
 
-const DOCS_BASE = 'https://github.com/amankumar430206/breakpoint/blob/main/';
+const WIKI_CONCEPT = '../wiki/#concept/';
 
 const SEV_COLOR: Record<Advice['severity'], string> = {
   warn: 'var(--tm-warn-fg)',
@@ -189,12 +189,12 @@ const AdviceRow = memo(function AdviceRow({ a }: { a: Advice }) {
         {a.useWhen}
       </p>
       <a
-        href={`${DOCS_BASE}${a.docHref}`}
+        href={`${WIKI_CONCEPT}${a.docHref}`}
         target="_blank"
         rel="noreferrer"
         className="mt-0.5 inline-block text-[10px] text-[var(--tm-accent)] hover:underline"
       >
-        concepts →
+        learn the concept →
       </a>
     </div>
   );

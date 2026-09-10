@@ -35,7 +35,7 @@ describe('advise — CAP posture', () => {
     );
     const cap = run(d).find((a) => a.topic === 'CAP posture');
     expect(cap?.verdict).toMatch(/AP-leaning/);
-    expect(cap?.docHref).toContain('concepts.md#');
+    expect(cap?.docHref).toMatch(/^[a-z-]+$/); // a bare concept slug, resolved by the wiki
   });
 
   it('calls multi-primary CP-leaning', () => {

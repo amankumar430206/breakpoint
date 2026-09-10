@@ -20,11 +20,9 @@ export interface Advice {
   /** When this pattern / choice is the right one. */
   useWhen: string;
   severity: 'info' | 'note' | 'warn';
-  /** Anchor into docs/concepts.md. */
+  /** Concept slug — resolves in the in-app wiki (src/wiki/concepts.ts). */
   docHref: string;
 }
-
-const DOC = 'docs/concepts.md';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -103,7 +101,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Early stage, or a bounded dataset where a short outage on failover is acceptable and you value strong consistency.',
         severity: 'note',
-        docHref: `${DOC}#cap`,
+        docHref: 'cap',
       });
     } else if (arch === 'primary-replica') {
       out.push({
@@ -113,7 +111,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Feeds, catalogs, timelines — anywhere a slightly stale read is fine. Not account balances, inventory counts, or anything read-modify-write.',
         severity: 'note',
-        docHref: `${DOC}#replication`,
+        docHref: 'replication',
       });
     } else if (arch === 'multi-primary') {
       const coord = numOr(p.writeCoordinationPct, 15);
@@ -124,7 +122,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Multi-region writes where stale reads are unacceptable and you can pay the write-latency tax. Otherwise prefer one primary + replicas.',
         severity: 'note',
-        docHref: `${DOC}#cap`,
+        docHref: 'cap',
       });
     } else if (arch === 'sharded') {
       out.push({
@@ -134,7 +132,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Write-scalable workloads with a natural partition key and few cross-partition queries.',
         severity: 'info',
-        docHref: `${DOC}#sharding`,
+        docHref: 'sharding',
       });
     }
     if (eng.capDefault === 'AP' && arch !== 'single') {
@@ -145,7 +143,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Raise the read/write quorum only on the operations that need it — keep the cheap path for the rest.',
         severity: 'info',
-        docHref: `${DOC}#cap`,
+        docHref: 'cap',
       });
     }
 
@@ -164,7 +162,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Add a read replica (master–slave: promote it on primary loss, expect a brief write outage) or a cache-aside layer once reads dominate.',
         severity: 'warn',
-        docHref: `${DOC}#replication`,
+        docHref: 'replication',
       });
     }
 
@@ -177,7 +175,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Shard by a key with even distribution (consistent hashing) so writes spread across independent nodes.',
         severity: 'warn',
-        docHref: `${DOC}#sharding`,
+        docHref: 'sharding',
       });
     }
     if (arch === 'sharded' && strOr(p.keyDistribution, 'uniform') === 'zipfian') {
@@ -190,7 +188,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
           useWhen:
             'Pick a higher-cardinality shard key, salt the hot key, or use consistent hashing with virtual nodes to spread it.',
           severity: 'warn',
-          docHref: `${DOC}#sharding`,
+          docHref: 'sharding',
         });
       }
     }
@@ -205,7 +203,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Cache-aside for read-heavy data that tolerates a short TTL; write-through when reads must be fresh. Add jitter / a lock to avoid a stampede on expiry.',
         severity: 'warn',
-        docHref: `${DOC}#caching`,
+        docHref: 'caching',
       });
     }
   }
@@ -225,7 +223,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
       why: 'Backend-selection policy set on the load balancer.',
       useWhen: hint,
       severity: 'info',
-      docHref: `${DOC}#load-balancing`,
+      docHref: 'load-balancing',
     });
   }
 
@@ -239,7 +237,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Put a reverse proxy in front for TLS termination, health checks, caching, rate-limiting and request fan-out. (A forward proxy is an egress concern — different tool.)',
         severity: 'warn',
-        docHref: `${DOC}#proxies`,
+        docHref: 'proxies',
       });
       break; // one note is enough
     }
@@ -257,7 +255,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Front the entry with a health-checked DNS policy (latency / failover) so a bad region is routed around; lower the TTL for faster failover.',
         severity: 'info',
-        docHref: `${DOC}#proxies`,
+        docHref: 'proxies',
       });
     } else if (strOr(dnsNode.params.routingPolicy, 'latency') === 'simple') {
       out.push({
@@ -267,7 +265,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Switch to a health-checked latency / failover policy across at least two regions.',
         severity: 'warn',
-        docHref: `${DOC}#proxies`,
+        docHref: 'proxies',
       });
     }
   }
@@ -284,7 +282,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'The queue smooths bursts, it does not add capacity — add workers, shard the topic for more consumer parallelism, or shed / DLQ the overflow.',
         severity: 'warn',
-        docHref: `${DOC}#backpressure`,
+        docHref: 'backpressure',
       });
     }
   }
@@ -300,7 +298,7 @@ export function advise(design: SystemDesign, result: SolveResult): Advice[] {
         useWhen:
           'Wrap a flaky or slow dependency in a circuit breaker (and set a timeout on the edge) so it fast-fails instead of tying up your workers.',
         severity: 'warn',
-        docHref: `${DOC}#circuit-breakers`,
+        docHref: 'circuit-breakers',
       });
     }
   }

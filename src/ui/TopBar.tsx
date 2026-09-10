@@ -103,6 +103,15 @@ export const TopBar = memo(function TopBar({
         onSaved={onProjectSaved}
       />
       <ShareMenu title={title} onImport={onImport} />
+      <a
+        href="../wiki/"
+        target="_blank"
+        rel="noreferrer"
+        title="System Design Wiki — what each component is, when to use it, what it pairs with"
+        className="shrink-0 rounded border border-[var(--tm-border-2)] bg-[var(--tm-btn)] px-2 py-1 text-xs text-[var(--tm-text-dim)] no-underline hover:bg-[var(--tm-btn-hover)]"
+      >
+        Learn
+      </a>
 
       <button
         onClick={running ? pause : play}

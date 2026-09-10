@@ -21,6 +21,8 @@ export default defineConfig({
         landing: fileURLToPath(new URL('./index.html', import.meta.url)),
         sandbox: fileURLToPath(new URL('./sandbox/index.html', import.meta.url)),
         embed: fileURLToPath(new URL('./embed.html', import.meta.url)),
+        // `/wiki/` — the System Design Wiki reference.
+        wiki: fileURLToPath(new URL('./wiki/index.html', import.meta.url)),
       },
     },
   },
