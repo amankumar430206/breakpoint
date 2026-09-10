@@ -3,7 +3,7 @@ import { useDesignStore } from '@/store/designStore';
 import { useViewStore } from '@/store/viewStore';
 import { useProbeStore } from '@/store/probeStore';
 import { CALIBRATABLE_TYPES } from '@/live/calibration';
-import { MAX_DURATION_SEC, MAX_RPS, MAX_USERS } from '@/live/targetPolicy';
+import { isAllowedTarget, MAX_DURATION_SEC, MAX_RPS, MAX_USERS } from '@/live/targetPolicy';
 import { ProbeTargetForm } from './ProbeTargetForm';
 
 const num =
@@ -13,6 +13,7 @@ const num =
  *  panel. Operates on the currently-selected node. */
 export function ProbeStrip() {
   const [editing, setEditing] = useState(false);
+  const [confirmPublic, setConfirmPublic] = useState(false);
 
   const nodeId = useDesignStore((s) => s.selectedNodeId);
   const node = useDesignStore((s) => s.nodes.find((n) => n.id === s.selectedNodeId));
@@ -32,8 +33,23 @@ export function ProbeStrip() {
   const dismissResult = useProbeStore((s) => s.dismissResult);
   const calibrateFromResult = useProbeStore((s) => s.calibrateFromResult);
   const clearCalibration = useProbeStore((s) => s.clearCalibration);
+  const publicAck = useProbeStore((s) => s.publicAck);
+  const ackPublicHost = useProbeStore((s) => s.ackPublicHost);
 
   const modelP99 = useViewStore((s) => (nodeId ? s.perNode[nodeId]?.latency.p99 : undefined));
+
+  const check = target?.url ? isAllowedTarget(target.url) : null;
+  const host = check?.url?.hostname ?? '';
+  const needsAck = !!check?.isPublic && !publicAck[host];
+
+  const runProbe = () => {
+    if (!nodeId) return;
+    if (needsAck) {
+      setConfirmPublic(true);
+      return;
+    }
+    start(nodeId);
+  };
 
   if (!node) {
     return (
@@ -138,12 +154,19 @@ export function ProbeStrip() {
             </button>
           ) : (
             <button
-              onClick={() => nodeId && start(nodeId)}
+              onClick={runProbe}
               className="ml-auto rounded bg-[var(--tm-accent)] px-2.5 py-0.5 font-medium text-white"
             >
               ▶ Run probe
             </button>
           )}
+        </div>
+      )}
+
+      {check?.isPublic && (
+        <div className="text-[10px] text-[var(--tm-text-faint)]">
+          Public endpoint — the browser will usually block it (CORS). If every request fails, that's
+          why.
         </div>
       )}
 
@@ -166,6 +189,14 @@ export function ProbeStrip() {
             {result.totalRequests.toLocaleString()} reqs
             {result.stoppedEarly ? ' · stopped early' : ''}
           </div>
+          {check?.isPublic &&
+            result.totalRequests > 0 &&
+            result.byClass['net-error'] / result.totalRequests > 0.5 && (
+              <div className="text-[10px] text-[var(--tm-warn-fg)]">
+                Most requests failed at the network layer — this API almost certainly blocks browser
+                requests (CORS). A local sidecar would bypass this.
+              </div>
+            )}
           {modelP99 != null && Number.isFinite(modelP99) && modelP99 > 0 && (
             <div className="tabnum text-[10px] text-[var(--tm-text-faint)]">
               model p99{calibrated ? ' (calibrated)' : ''} {(modelP99 * 1000).toFixed(0)} ms
@@ -217,6 +248,73 @@ export function ProbeStrip() {
       )}
 
       {editing && nodeId && <ProbeTargetForm nodeId={nodeId} onClose={() => setEditing(false)} />}
+
+      {confirmPublic && (
+        <PublicConfirm
+          host={host}
+          onCancel={() => setConfirmPublic(false)}
+          onConfirm={() => {
+            ackPublicHost(host);
+            setConfirmPublic(false);
+            if (nodeId) start(nodeId);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** One-time acknowledgement before load-testing a host that isn't the user's
+ *  own machine / private network. */
+function PublicConfirm({
+  host,
+  onConfirm,
+  onCancel,
+}: {
+  host: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [checked, setChecked] = useState(false);
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-[380px] max-w-full rounded-lg border border-[var(--tm-border-2)] bg-[var(--tm-panel)] p-4 text-[12px] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="mb-2 font-medium text-[var(--tm-text)]">Load-test a public endpoint?</p>
+        <p className="mb-3 text-[var(--tm-text-dim)]">
+          You're about to send repeated real requests to <span className="tabnum">{host}</span>. Only
+          do this against a service you own or are authorised to test.
+        </p>
+        <label className="mb-3 flex items-start gap-2 text-[var(--tm-text-dim)]">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+            className="mt-0.5"
+          />
+          I own this endpoint or have permission to load-test it.
+        </label>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded border border-[var(--tm-border-2)] px-2.5 py-1 text-[var(--tm-text-dim)] hover:bg-[var(--tm-btn)]"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!checked}
+            className="rounded bg-[var(--tm-accent)] px-3 py-1 font-medium text-white disabled:opacity-40"
+          >
+            Run probe
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useProbeStore, emptyTarget } from '@/store/probeStore';
 import { isAllowedTarget } from '@/live/targetPolicy';
+import { looksLikeCurl, parseCurl } from '@/live/curl';
 import type { ProbeTarget } from '@/live/probeProtocol';
 
 const METHODS: ProbeTarget['method'][] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -25,6 +26,7 @@ export function ProbeTargetForm({ nodeId, onClose }: { nodeId: string; onClose: 
   const [draft, setDraft] = useState<ProbeTarget>(() => stored ?? emptyTarget());
   const [testState, setTestState] = useState<string | null>(null);
   const [showCors, setShowCors] = useState(false);
+  const [pastedCurl, setPastedCurl] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -35,6 +37,26 @@ export function ProbeTargetForm({ nodeId, onClose }: { nodeId: string; onClose: 
   const check = useMemo(() => (draft.url.trim() ? isAllowedTarget(draft.url) : null), [draft.url]);
 
   const patch = (p: Partial<ProbeTarget>) => setDraft((d) => ({ ...d, ...p }));
+
+  /** Paste a whole `curl …` command into the URL box → fill every field. */
+  const onUrlChange = (raw: string) => {
+    if (looksLikeCurl(raw)) {
+      const parsed = parseCurl(raw);
+      if (parsed) {
+        setDraft((d) => ({
+          ...d,
+          method: parsed.method ?? d.method,
+          url: parsed.url ?? d.url,
+          headers: parsed.headers?.length ? parsed.headers : d.headers,
+          body: parsed.body ?? d.body,
+        }));
+        setPastedCurl(true);
+        return;
+      }
+    }
+    setPastedCurl(false);
+    patch({ url: raw });
+  };
   const setHeader = (i: number, kv: [string, string]) =>
     setDraft((d) => ({ ...d, headers: d.headers.map((h, j) => (j === i ? kv : h)) }));
   const addHeader = () => setDraft((d) => ({ ...d, headers: [...d.headers, ['', '']] }));
@@ -117,16 +139,28 @@ export function ProbeTargetForm({ nodeId, onClose }: { nodeId: string; onClose: 
             </select>
             <input
               value={draft.url}
-              onChange={(e) => patch({ url: e.target.value })}
-              placeholder="http://localhost:3000/api/health"
+              onChange={(e) => onUrlChange(e.target.value)}
+              placeholder="http://localhost:3000/api/health — or paste a curl command"
               className={field}
               autoFocus
             />
           </div>
+          {pastedCurl && (
+            <p className="text-[10px] text-[var(--tm-good-fg)]">
+              Parsed the curl command — method, headers and body filled below.
+            </p>
+          )}
 
           {check && !check.ok && (
             <p className="rounded bg-[var(--tm-crit-bg)] px-2 py-1 text-[11px] text-[var(--tm-crit-fg)]">
               {check.reason}
+            </p>
+          )}
+          {check?.ok && check.isPublic && (
+            <p className="rounded bg-[var(--tm-warn-bg)] px-2 py-1 text-[11px] text-[var(--tm-warn-fg)]">
+              Public endpoint. Most public APIs block browser requests via CORS — expect network
+              errors unless the API sends <code>Access-Control-Allow-Origin</code>. You'll confirm
+              you're allowed to load-test it before the first run.
             </p>
           )}
           {check?.ok && check.mixedContentWarning && (

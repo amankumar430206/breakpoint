@@ -23,16 +23,31 @@ a design you never probe behaves exactly as before.
 
 ## Target policy
 
-v1 only hits **your own machine / private network**:
+Targets are classified:
 
-- `localhost`, `*.localhost`, `*.local`, `127.0.0.0/8`, `::1`
-- RFC1918 IPv4 (`10/8`, `192.168/16`, `172.16/12`) and IPv6 ULA (`fc00::/7`)
+- **Private** — `localhost`, `*.localhost`, `*.local`, `127.0.0.0/8`, `::1`,
+  RFC1918 IPv4 (`10/8`, `192.168/16`, `172.16/12`), IPv6 ULA (`fc00::/7`). Runs
+  immediately.
+- **Public** — anything else that parses as `http(s)`. Allowed, but the first run
+  against a given host needs a one-time checkbox: *"I own this endpoint or have
+  permission to load-test it."* Most public APIs still fail from the browser —
+  see below.
+- **Always refused** — link-local `169.254/16` (covers the cloud metadata
+  endpoint), `fe80::/10`, `0.0.0.0`, and non-`http(s)` schemes.
 
-Every public host is refused. (Link-local `169.254/16` is also refused — it
-covers the cloud metadata endpoint.) Hard caps: **500 req/s**, **200 users**,
-**180 s**, **30 000 total requests**; a **Stop** button aborts everything
-in-flight. `429`/`503` responses are backed off per `Retry-After`; a redirect to
-another host is recorded as an error, never followed.
+Hard caps: **500 req/s**, **200 users**, **180 s**, **30 000 total requests**; a
+**Stop** button aborts everything in-flight. `429`/`503` responses are backed off
+per `Retry-After`; a redirect to another host is recorded as an error, never
+followed.
+
+## Public APIs & CORS
+
+The probe runs from the browser, so a public API only responds if it sends
+`Access-Control-Allow-Origin` for this origin (many open data / read APIs do;
+Stripe / GitHub-authenticated / OpenAI / most write APIs do not). When it
+doesn't, every request comes back as a network error with no status or timing —
+the results row calls this out and points at the planned local sidecar
+(`npx breakpoint-probe`), which does the HTTP in Node and has no CORS wall.
 
 ## CORS
 

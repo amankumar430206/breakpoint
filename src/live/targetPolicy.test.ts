@@ -31,9 +31,10 @@ describe('isLoopbackOrPrivateHost', () => {
 });
 
 describe('isAllowedTarget', () => {
-  it('accepts a localhost URL with a path and port', () => {
+  it('accepts a localhost URL as private (no ack needed)', () => {
     const r = isAllowedTarget('http://localhost:3000/api/health');
     expect(r.ok).toBe(true);
+    expect(r.isPublic).toBe(false);
     expect(r.url?.hostname).toBe('localhost');
   });
 
@@ -47,10 +48,16 @@ describe('isAllowedTarget', () => {
     expect(isAllowedTarget('file:///etc/passwd').ok).toBe(false);
   });
 
-  it('rejects public hosts with a sidecar hint', () => {
+  it('allows public hosts but flags them for a permission ack', () => {
     const r = isAllowedTarget('https://api.stripe.com/v1/charges');
-    expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/sidecar/i);
+    expect(r.ok).toBe(true);
+    expect(r.isPublic).toBe(true);
+  });
+
+  it('always refuses link-local / metadata / 0.0.0.0', () => {
+    expect(isAllowedTarget('http://169.254.169.254/latest/meta-data/').ok).toBe(false);
+    expect(isAllowedTarget('http://0.0.0.0:8080/').ok).toBe(false);
+    expect(isAllowedTarget('http://[fe80::1]/').ok).toBe(false);
   });
 });
 

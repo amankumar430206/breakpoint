@@ -1,10 +1,16 @@
 /**
- * Live Probe safety gate. The probe is a real load generator, so v1 only lets
- * it hit the developer's own machine / private network: loopback, `*.local`,
- * `*.localhost`, RFC1918 IPv4, and IPv6 ULA. Every public host is refused
- * outright (the message points at the future local sidecar). These limits are
- * enforced in three places: the URL field, the "Test" button, and the worker's
- * `start` handler — never trust just one.
+ * Live Probe target gate. The probe is a real load generator (real `fetch()`,
+ * not simulation), so we classify every target:
+ *
+ *  - loopback / `*.local` / `*.localhost` / RFC1918 / IPv6 ULA  → allowed, private
+ *  - anything else that parses as http(s)                       → allowed, PUBLIC
+ *    (the UI requires a one-time "I have permission" acknowledgement per host,
+ *     and most public APIs still fail on CORS from a browser)
+ *  - link-local `169.254/16` (covers the cloud metadata endpoint), `0.0.0.0`,
+ *    and non-http(s) schemes                                    → always refused
+ *
+ * The classification is re-checked in three places: the URL field, the "Test"
+ * button, and the worker's `start` handler — never trust just one.
  */
 
 /** Hard ceilings. UI clamps to these; the worker self-aborts if a run exceeds them. */
@@ -19,6 +25,9 @@ export interface TargetCheck {
   ok: boolean;
   /** Why it was refused (shown inline under the URL field). */
   reason?: string;
+  /** true for a host that isn't loopback / private — needs a permission ack and
+   *  will usually be blocked by the browser's CORS policy. */
+  isPublic?: boolean;
   /** HTTPS page → `http://` target: the browser may block it. Not fatal. */
   mixedContentWarning?: boolean;
   /** Parsed URL, present only when `ok`. */
@@ -50,6 +59,15 @@ export function isLoopbackOrPrivateHost(hostname: string): boolean {
   return false;
 }
 
+/** Hosts that are never a legitimate probe target. */
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  if (h === '0.0.0.0' || h === '::') return true;
+  if (/^169\.254\./.test(h)) return true; // link-local — includes the cloud metadata IP
+  if (/^fe80:/.test(h)) return true; // IPv6 link-local
+  return false;
+}
+
 export function isAllowedTarget(raw: string): TargetCheck {
   let url: URL;
   try {
@@ -60,16 +78,17 @@ export function isAllowedTarget(raw: string): TargetCheck {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     return { ok: false, reason: 'Only http:// and https:// targets are supported.' };
   }
-  if (!isLoopbackOrPrivateHost(url.hostname)) {
-    return {
-      ok: false,
-      reason:
-        'Live Probe only targets localhost and private networks. For a public endpoint, use the local sidecar (coming soon).',
-    };
+  if (isBlockedHost(url.hostname)) {
+    return { ok: false, reason: 'That address is not allowed as a probe target.' };
   }
   const onHttps =
     typeof location !== 'undefined' && location != null && location.protocol === 'https:';
-  return { ok: true, url, mixedContentWarning: onHttps && url.protocol === 'http:' };
+  const mixedContentWarning = onHttps && url.protocol === 'http:';
+
+  if (isLoopbackOrPrivateHost(url.hostname)) {
+    return { ok: true, url, isPublic: false, mixedContentWarning };
+  }
+  return { ok: true, url, isPublic: true, mixedContentWarning };
 }
 
 export type ProbeMode = 'rps' | 'users';

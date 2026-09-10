@@ -43,6 +43,10 @@ interface ProbeState {
   /** Transient per-node model overrides from a completed run. Not persisted. */
   calibration: CalibrationMap;
 
+  /** Hosts the user has confirmed they're allowed to load-test. Per-session,
+   *  keyed by hostname. Not persisted. */
+  publicAck: Record<string, true>;
+
   /** Consumed by `useProbe`; the hook clears it after posting to the worker. */
   command: ProbeCommand | null;
 
@@ -61,6 +65,8 @@ interface ProbeState {
 
   calibrateFromResult: (nodeId: string) => void;
   clearCalibration: (nodeId?: string) => void;
+
+  ackPublicHost: (host: string) => void;
 }
 
 let nonce = 0;
@@ -75,6 +81,7 @@ export const useProbeStore = create<ProbeState>((set, get) => ({
   series: [],
   result: null,
   calibration: {},
+  publicAck: {},
   command: null,
 
   setTarget: (nodeId, patch) =>
@@ -149,4 +156,6 @@ export const useProbeStore = create<ProbeState>((set, get) => ({
       delete next[nodeId];
       return { calibration: next };
     }),
+
+  ackPublicHost: (host) => set((s) => ({ publicAck: { ...s.publicAck, [host]: true } })),
 }));
