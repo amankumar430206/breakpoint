@@ -107,7 +107,7 @@ export function UPlotChart({ data, series, height, fmtY }: UPlotChartProps) {
           stroke: axisStroke,
           grid: { stroke: gridStroke, width: 1 },
           ticks: { stroke: gridStroke, width: 1 },
-          size: 44,
+          size: 52,
           values: fmtY ? (_u, vals) => vals.map((v) => fmtY(v)) : undefined,
           font: '10px ui-monospace, monospace',
         },

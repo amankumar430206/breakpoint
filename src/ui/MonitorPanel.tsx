@@ -275,7 +275,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-0 flex-col rounded-lg border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2">
+    <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-[var(--tm-border)] bg-[var(--tm-panel-2)] p-2">
       <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-[var(--tm-text-faint)]">
         <span className="uppercase tracking-wide">{title}</span>
         <span className="flex flex-wrap gap-2">
@@ -287,7 +287,7 @@ function Panel({
           ))}
         </span>
       </div>
-      <div className="min-h-0 flex-1">{children}</div>
+      {children}
     </div>
   );
 }
