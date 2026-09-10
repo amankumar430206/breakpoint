@@ -65,7 +65,29 @@ export function WikiPage() {
           href="../sandbox/"
           className="flex items-center gap-2 font-semibold tracking-tight no-underline hover:opacity-80"
         >
-          <span className="text-[var(--tm-accent)]">◉</span> Breakpoint
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            className="shrink-0"
+          >
+            <path
+              d="M3 9h9"
+              stroke="var(--tm-accent)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+            <path
+              d="M12 15h9"
+              stroke="var(--tm-accent)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+            <circle cx="12" cy="12" r="3" fill="var(--tm-crit-fg)" />
+          </svg>
+          Breakpoint
         </a>
         <span className="text-[var(--tm-text-faint)]">/</span>
         <span className="text-[var(--tm-text-dim)]">System Design Wiki</span>
