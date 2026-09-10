@@ -1,6 +1,6 @@
 import { memo, useId } from 'react';
 import type { SystemDesign } from '@/engine';
-import { healthForRho } from '@/lib/format';
+import { HEALTH_COLOR, healthForRho } from '@/lib/format';
 import { ComponentIcon } from '@/flow/icons';
 
 const BOX_W = 138;
@@ -99,12 +99,8 @@ function MiniCanvasInner({ design, rho, over, flow = false }: Props) {
         const r = rho?.[n.id];
         const isOver = over?.[n.id] ?? false;
         const level = r == null ? 'idle' : healthForRho(r, isOver);
-        // Monochrome: utilization reads as bar length; a saturated node inverts
-        // to solid ink (the one unambiguous "this broke" signal in B/W print).
-        const crit = level === 'crit';
-        const ink = crit ? 'var(--tm-bg)' : 'var(--tm-text)';
-        const faint = crit ? 'var(--tm-bg)' : 'var(--tm-text-faint)';
-        const stripe = r == null ? 'var(--tm-border-2)' : ink;
+        const health = HEALTH_COLOR[level];
+        const accent = r == null ? 'var(--tm-border-2)' : health;
         const sub = subLabelOf(n.type, n.params ?? {});
         const innerW = BOX_W - 20;
         return (
@@ -114,31 +110,23 @@ function MiniCanvasInner({ design, rho, over, flow = false }: Props) {
               width={BOX_W}
               height={BOX_H}
               rx="9"
-              style={crit ? { fill: 'var(--tm-text)', stroke: 'var(--tm-text)' } : undefined}
+              style={level === 'crit' ? { stroke: health } : undefined}
             />
-            <rect width="3.5" height={BOX_H} rx="1.75" fill={stripe} />
-            <g transform="translate(11 9)" style={{ color: r == null ? faint : ink }}>
+            <rect width="3.5" height={BOX_H} rx="1.75" fill={accent} />
+            <g transform="translate(11 9)" style={{ color: r == null ? 'var(--tm-text-faint)' : health }}>
               <ComponentIcon type={n.type} size={15} />
             </g>
-            <text className="lp-node-label" x="31" y="20" style={{ fill: ink }}>
+            <text className="lp-node-label" x="31" y="20">
               {truncate(n.label ?? n.type, 15)}
             </text>
             {sub && (
-              <text className="lp-node-sub" x="31" y="33" style={{ fill: faint }}>
+              <text className="lp-node-sub" x="31" y="33">
                 {sub}
               </text>
             )}
             {r != null && (
               <>
-                <rect
-                  className="lp-bar-track"
-                  x="10"
-                  y={BOX_H - 12}
-                  width={innerW}
-                  height="4"
-                  rx="2"
-                  style={crit ? { fill: 'rgba(255,255,255,0.28)' } : undefined}
-                />
+                <rect className="lp-bar-track" x="10" y={BOX_H - 12} width={innerW} height="4" rx="2" />
                 <rect
                   className="lp-bar-fill"
                   x="10"
@@ -146,14 +134,14 @@ function MiniCanvasInner({ design, rho, over, flow = false }: Props) {
                   width={Math.max(0, Math.min(1, r)) * innerW}
                   height="4"
                   rx="2"
-                  fill={ink}
+                  fill={health}
                 />
                 <text
                   className="lp-node-val"
                   x={BOX_W - 10}
                   y="20"
                   textAnchor="end"
-                  style={{ fill: ink }}
+                  fill={health}
                 >
                   {isOver ? 'ρ 1.0+' : `ρ ${r.toFixed(2)}`}
                 </text>

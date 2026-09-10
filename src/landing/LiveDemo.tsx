@@ -7,8 +7,9 @@ import { MiniCanvas } from './MiniCanvas';
 import { DEMO_DESIGN } from './demoDesign';
 import { useEngineLoop } from './useEngineLoop';
 
-const C_FAINT = '#8a8574';
-const C_INK = '#17160f';
+const C_OFFERED = '#7d8796';
+const C_SERVED = '#3b82f6';
+const C_P99 = '#f0883e';
 
 const SANDBOX_URL = `${import.meta.env.BASE_URL}sandbox/${designToHash(DEMO_DESIGN)}`;
 
@@ -47,13 +48,13 @@ export function LiveDemo() {
   const tputSeries = useMemo<uPlot.Series[]>(
     () => [
       {},
-      { label: 'offered', stroke: C_FAINT, width: 1, dash: [3, 3] },
-      { label: 'served', stroke: C_INK, width: 1.5, fill: 'rgba(23,22,15,0.06)' },
+      { label: 'offered', stroke: C_OFFERED, width: 1.25 },
+      { label: 'served', stroke: C_SERVED, width: 1.5, fill: 'rgba(59,130,246,0.10)' },
     ],
     [],
   );
   const latSeries = useMemo<uPlot.Series[]>(
-    () => [{}, { label: 'p99', stroke: C_INK, width: 1.5, fill: 'rgba(23,22,15,0.05)' }],
+    () => [{}, { label: 'p99', stroke: C_P99, width: 1.5, fill: 'rgba(240,136,62,0.10)' }],
     [],
   );
 
@@ -83,9 +84,7 @@ export function LiveDemo() {
           </span>
           <span className="lp-kpi">
             success{' '}
-            <b style={{ textDecoration: dropping ? 'underline' : undefined }}>
-              {fmtPct(frame.success)}
-            </b>
+            <b style={{ color: dropping ? '#e5484d' : undefined }}>{fmtPct(frame.success)}</b>
           </span>
         </div>
 
@@ -93,10 +92,10 @@ export function LiveDemo() {
           <div className="lp-chart-card">
             <div className="lp-chart-title">
               <span>Throughput (req/s)</span>
-              <span className="lp-legend" data-dash style={{ ['--_c' as string]: C_FAINT }}>
+              <span className="lp-legend" style={{ ['--_c' as string]: C_OFFERED }}>
                 offered
               </span>
-              <span className="lp-legend" style={{ ['--_c' as string]: C_INK }}>
+              <span className="lp-legend" style={{ ['--_c' as string]: C_SERVED }}>
                 served
               </span>
             </div>
@@ -105,7 +104,7 @@ export function LiveDemo() {
           <div className="lp-chart-card">
             <div className="lp-chart-title">
               <span>Latency p99 (ms)</span>
-              <span className="lp-legend" style={{ ['--_c' as string]: C_INK }}>
+              <span className="lp-legend" style={{ ['--_c' as string]: C_P99 }}>
                 p99
               </span>
             </div>

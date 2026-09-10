@@ -1,9 +1,11 @@
 /* ============================================================================
- * Landing page — a monochrome "research paper" treatment. Paper ground, inked
- * text, hairline rules, a serif body. No chroma anywhere: the embedded live
- * demo and its charts are driven to greyscale by overriding the app's `--tm-*`
- * tokens on :root (this stylesheet only loads on the landing page, and is
- * imported after index.css, so the bare-:root override wins on source order).
+ * Landing page — a spare "paper" treatment: warm paper ground, inked
+ * sans-serif text, hairline rules, numbered sections. The prose stays
+ * monochrome; the brand mark and the live-demo charts carry the only colour.
+ * `--tm-*` are overridden on :root (greyscale) so the embedded pane's chrome
+ * stays neutral — the chart series set their own colours explicitly. This
+ * stylesheet only loads on the landing page and after index.css, so the
+ * bare-:root override wins on source order.
  * ========================================================================== */
 
 :root {
@@ -50,14 +52,15 @@
   --pp-rule: #dbd7c9;
   --pp-rule-2: #bdb7a3;
   --pp-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --pp-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia,
-    Cambria, "Times New Roman", serif;
+  --pp-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
 
   background: var(--pp-paper);
   color: var(--pp-ink-2);
-  font-family: var(--pp-serif);
-  font-size: 17px;
-  line-height: 1.68;
+  font-family: var(--pp-sans);
+  font-size: 16px;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-kerning: normal;
@@ -79,10 +82,10 @@
 .lp h3,
 .lp h4 {
   color: var(--pp-ink);
-  font-family: var(--pp-serif);
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.005em;
+  font-family: var(--pp-sans);
+  font-weight: 640;
+  line-height: 1.18;
+  letter-spacing: -0.017em;
   margin: 0;
 }
 
@@ -146,11 +149,11 @@
   text-decoration: none;
 }
 .lp-logo {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex: none;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M3 9h9' stroke='%2317160f' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M12 15h9' stroke='%2317160f' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%2317160f'/%3E%3C/svg%3E")
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M3 9h9' stroke='%233b6fe0' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M12 15h9' stroke='%233b6fe0' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%23e5484d'/%3E%3C/svg%3E")
     center / contain no-repeat;
 }
 .lp-nav-links {
@@ -236,10 +239,6 @@
   color: var(--pp-ink-2);
   max-width: 64ch;
   margin: 22px 0 0;
-}
-.lp-hero .lp-lead::first-letter {
-  /* subtle scholarly drop-ish emphasis without a full drop cap */
-  font-weight: 600;
 }
 .lp-cta-row {
   display: flex;
@@ -438,7 +437,7 @@
 }
 .lp-minicanvas .lp-node-label {
   fill: var(--tm-text);
-  font: 600 12px var(--pp-serif);
+  font: 600 12px var(--pp-sans);
 }
 .lp-minicanvas .lp-node-sub {
   fill: var(--tm-text-faint);
@@ -656,14 +655,14 @@
   text-decoration: underline;
 }
 .lp-footer .lp-brand {
-  font-family: var(--pp-serif);
+  font-family: var(--pp-sans);
 }
 .lp-footer-note {
   margin-top: 12px;
   color: var(--pp-faint);
   max-width: 78ch;
   font-style: italic;
-  font-family: var(--pp-serif);
+  font-family: var(--pp-sans);
 }
 
 @media (max-width: 620px) {
